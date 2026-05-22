@@ -1,0 +1,58 @@
+name: expiry_tracker
+description: A multi-category expiration tracker for household items.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  sqflite: ^2.4.2
+  path_provider: ^2.1.5
+  path: ^1.9.1
+  http: ^1.3.0
+  mobile_scanner: ^6.0.7
+  provider: ^6.1.2
+  intl: ^0.20.2
+  shared_preferences: ^2.5.3
+  flutter_local_notifications: ^18.0.1
+  permission_handler: ^11.3.1
+  share_plus: ^10.1.4
+  file_picker: ^8.1.7
+  image_picker: ^1.1.2
+  nearby_connections: ^4.3.0
+  url_launcher: ^6.3.1
+  local_auth: ^2.3.0
+  in_app_purchase: ^3.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_launcher_icons: ^0.14.3
+  flutter_native_splash: ^2.4.0
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/app_icon.png"
+  adaptive_icon_foreground: "assets/icon/app_icon_foreground.png"
+  adaptive_icon_background: "#4CAF50"
+  remove_alpha_ios: true
+  min_sdk_android: 21
+
+flutter_native_splash:
+  color: "#4CAF50"
+  image: "assets/icon/app_icon.png"
+  android: true
+  ios: true
+  android_gravity: center
+  ios_content_mode: center
+  fullscreen: true
+
+flutter:
+  uses-material-design: true

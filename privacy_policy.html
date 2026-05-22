@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>隐私政策 - 到期管家 Expiry Tracker</title>
+<style>
+  body { font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; line-height: 1.8; max-width: 720px; margin: 0 auto; padding: 24px 16px; color: #333; }
+  h1 { font-size: 22px; border-bottom: 1px solid #eee; padding-bottom: 12px; }
+  h2 { font-size: 16px; margin-top: 24px; }
+  p, li { font-size: 14px; color: #555; }
+  ul { padding-left: 20px; }
+  .lang-toggle { text-align: right; margin-bottom: 16px; }
+  .lang-toggle a { color: #4CAF50; cursor: pointer; font-size: 13px; margin-left: 12px; text-decoration: none; }
+  .lang-toggle a:hover { text-decoration: underline; }
+  .en { display: none; }
+  footer { margin-top: 40px; font-size: 12px; color: #999; border-top: 1px solid #eee; padding-top: 16px; }
+</style>
+</head>
+<body>
+
+<div class="lang-toggle">
+  <a onclick="showLang('zh')">中文</a>
+  <a onclick="showLang('en')">English</a>
+</div>
+
+<!-- 中文版 -->
+<div id="zh" class="zh">
+<h1>隐私政策</h1>
+<p>本应用尊重并保护您的隐私。请您仔细阅读以下隐私政策。</p>
+
+<h2>1. 信息收集</h2>
+<p>本应用所有数据（物品信息、家庭成员信息、条码缓存等）仅存储于您设备的本地 SQLite 数据库中，不会自动上传至任何服务器。</p>
+
+<h2>2. 相机权限</h2>
+<p>条码扫描功能需要相机权限，仅用于扫描物品条码。我们不会通过相机收集任何其他信息。</p>
+
+<h2>3. 网络请求</h2>
+<p>条码查询时，我们会向第三方 API 服务（阿里云市场、Open Food Facts）发送条码编号以获取物品信息。这些服务可能记录您的请求以提供 API 服务。您可在设置中关闭自动查询。</p>
+
+<h2>4. 附近设备权限</h2>
+<p>家庭同步功能使用 Nearby Connections API，通过 WiFi/蓝牙在局域网内发现附近设备并传输物品数据。此功能需要位置或附近设备权限，仅在您主动开启时使用。</p>
+
+<h2>5. 文件存储</h2>
+<p>导出缓存和导入照片时需要读写存储权限。导出的缓存文件仅包含物品条码信息，不包含个人身份信息。</p>
+
+<h2>6. 第三方服务</h2>
+<p>本应用使用了若干第三方 SDK（详见应用内第三方 SDK 清单），这些 SDK 可能收集设备信息以提供服务。</p>
+
+<h2>7. 联系我们</h2>
+<p>如您对本隐私政策有任何疑问，请通过邮箱 lovesmile811@gmail.com 联系我们。</p>
+
+<p style="font-size:13px; color:#999;">更新日期：2026 年 5 月</p>
+</div>
+
+<!-- English Version -->
+<div id="en" class="en">
+<h1>Privacy Policy</h1>
+<p>This application respects and protects your privacy. Please read this policy carefully.</p>
+
+<h2>1. Data Collection</h2>
+<p>All data (item info, family members, barcode cache) is stored locally in your device's SQLite database. No data is automatically uploaded to any server.</p>
+
+<h2>2. Camera Permission</h2>
+<p>Camera permission is used solely for barcode scanning. No other information is collected through the camera.</p>
+
+<h2>3. Network Requests</h2>
+<p>When looking up barcodes, we send the barcode number to third-party APIs. These services may log your request to provide their service. You can disable auto-lookup in settings.</p>
+
+<h2>4. Nearby Devices</h2>
+<p>The family sync feature uses Google Nearby Connections API to discover nearby devices via WiFi/Bluetooth. Location or nearby device permission is required and only used when active.</p>
+
+<h2>5. File Storage</h2>
+<p>Storage permission is needed for cache export and photo import. Exported cache contains barcode info only, no personal identifiable information.</p>
+
+<h2>6. Third-Party Services</h2>
+<p>This app uses several third-party SDKs (see SDK list in the app) which may collect device information to provide their services.</p>
+
+<h2>7. Contact</h2>
+<p>If you have any questions, contact us at lovesmile811@gmail.com.</p>
+
+<p style="font-size:13px; color:#999;">Last updated: May 2026</p>
+</div>
+
+<footer>
+  <p>到期管家 Expiry Tracker</p>
+</footer>
+
+<script>
+function showLang(lang) {
+  document.querySelectorAll('.zh, .en').forEach(el => el.style.display = 'none');
+  document.getElementById(lang).style.display = 'block';
+}
+window.onload = function() {
+  var lang = navigator.language || navigator.userLanguage;
+  if (lang && lang.startsWith('zh')) { showLang('zh'); } else { showLang('en'); }
+};
+</script>
+</body>
+</html>
