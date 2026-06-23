@@ -48,8 +48,8 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
     _batchCtrl = TextEditingController(text: d?.batchNumber ?? '');
     _manufacturerCtrl = TextEditingController(text: d?.manufacturer ?? br?.manufacturer ?? '');
     _expiryDate = d?.expiryDate ?? DateTime.now().add(const Duration(days: 365));
-    _iconCodePoint = d?.iconCodePoint ?? Icons.inventory_2.codePoint;
     _category = d?.category ?? ItemCategory.drug;
+    _iconCodePoint = d?.iconCodePoint ?? _allIcons[_defaultIconIndex[_category] ?? 0].codePoint;
   }
 
   @override
@@ -112,70 +112,46 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
     );
   }
 
-  static const _defaultIcons = {
-    ItemCategory.drug: Icons.medication,
-    ItemCategory.food: Icons.restaurant,
-    ItemCategory.cosmetic: Icons.face,
-    ItemCategory.dailyNecessity: Icons.cleaning_services,
-    ItemCategory.electronics: Icons.bolt,
-    ItemCategory.other: Icons.inventory_2,
+  // 14 icons in fixed order, matching _iconLabelKeys indices 0-13
+  static const _allIcons = [
+    Icons.inventory_2,           // 0  通用
+    Icons.medication,             // 1  药片
+    Icons.restaurant,             // 2  食品
+    Icons.face,                  // 3  美妆
+    Icons.cleaning_services,      // 4  清洁
+    Icons.science,                // 5  日用
+    Icons.health_and_safety,      // 6  保健
+    Icons.kitchen,                // 7  箱包
+    Icons.bolt,                   // 8  电子
+    Icons.medical_information,    // 9  日用
+    Icons.local_pharmacy,         // 10 药片
+    Icons.healing,                // 11 保健
+    Icons.opacity,                // 12 液体
+    Icons.masks,                  // 13 保健
+  ];
+
+  // Per-category icon index lists (indices into _allIcons)
+  static const Map<ItemCategory, List<int>> _categoryIconIndices = {
+    ItemCategory.drug: [0, 1, 5, 6, 9, 10, 11, 12, 13],
+    ItemCategory.food: [0, 2, 7],
+    ItemCategory.cosmetic: [0, 3, 12],
+    ItemCategory.dailyNecessity: [0, 4, 7],
+    ItemCategory.electronics: [0, 8],
+    ItemCategory.other: [0, 3, 4, 8],
   };
 
-  static const Map<ItemCategory, List<IconData>> _categoryIcons = {
-    ItemCategory.drug: [
-      Icons.medication,
-      Icons.local_pharmacy,
-      Icons.health_and_safety,
-      Icons.medical_information,
-      Icons.science,
-      Icons.masks,
-      Icons.opacity,
-      Icons.inventory_2,
-    ],
-    ItemCategory.food: [
-      Icons.restaurant,
-      Icons.kitchen,
-      Icons.inventory_2,
-    ],
-    ItemCategory.cosmetic: [
-      Icons.face,
-      Icons.opacity,
-      Icons.inventory_2,
-    ],
-    ItemCategory.dailyNecessity: [
-      Icons.cleaning_services,
-      Icons.inventory_2,
-      Icons.kitchen,
-    ],
-    ItemCategory.electronics: [
-      Icons.bolt,
-      Icons.inventory_2,
-    ],
-    ItemCategory.other: [
-      Icons.inventory_2,
-      Icons.category,
-    ],
-  };
-
-  static final Map<IconData, String> _iconLabelKeys = {
-    Icons.inventory_2: 'icon_label_general',
-    Icons.medication: 'icon_label_pill',
-    Icons.local_pharmacy: 'icon_label_pill',
-    Icons.health_and_safety: 'icon_label_health',
-    Icons.medical_information: 'icon_label_biotech',
-    Icons.science: 'icon_label_biotech',
-    Icons.masks: 'icon_label_health',
-    Icons.opacity: 'icon_label_liquid',
-    Icons.restaurant: 'icon_label_food',
-    Icons.kitchen: 'icon_label_kit',
-    Icons.face: 'icon_label_cosmetics',
-    Icons.cleaning_services: 'icon_label_cleaning',
-    Icons.bolt: 'icon_label_electronics',
-    Icons.category: 'icon_label_general',
+  // Default icon index for each category
+  static const Map<ItemCategory, int> _defaultIconIndex = {
+    ItemCategory.drug: 1,
+    ItemCategory.food: 2,
+    ItemCategory.cosmetic: 3,
+    ItemCategory.dailyNecessity: 4,
+    ItemCategory.electronics: 8,
+    ItemCategory.other: 0,
   };
 
   Widget _buildIconPicker() {
-    final icons = _categoryIcons[_category] ?? [Icons.inventory_2];
+    final indices = _categoryIconIndices[_category] ?? [0];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -186,9 +162,9 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
         Wrap(
           spacing: 12,
           runSpacing: 12,
-          children: icons.map((icon) {
+          children: indices.map((idx) {
+            final icon = _allIcons[idx];
             final selected = _iconCodePoint == icon.codePoint;
-            final labelKey = _iconLabelKeys[icon] ?? 'icon_label_general';
             return GestureDetector(
               onTap: () => setState(() => _iconCodePoint = icon.codePoint),
               child: Container(
@@ -205,7 +181,12 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
                   children: [
                     Icon(icon, color: selected ? Colors.white : AppColors.textSecondary, size: 24),
                     const SizedBox(height: 2),
-                    Text(context.tr(labelKey), style: TextStyle(fontSize: 10, color: selected ? Colors.white : AppColors.textSecondary), overflow: TextOverflow.ellipsis, textAlign: TextAlign.center),
+                    Text(
+                      context.tr(_iconLabelKeyForIndex(idx)),
+                      style: TextStyle(fontSize: 10, color: selected ? Colors.white : AppColors.textSecondary),
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                    ),
                   ],
                 ),
               ),
@@ -216,11 +197,33 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
     );
   }
 
+  String _iconLabelKeyForIndex(int idx) {
+    // Match the original label key order: 0=general,1=pill,2=food,3=cosmetics,4=cleaning,5=biotech,6=health,7=kit,8=electronics
+    switch (idx) {
+      case 0: return 'icon_label_general';
+      case 1: return 'icon_label_pill';
+      case 2: return 'icon_label_food';
+      case 3: return 'icon_label_cosmetics';
+      case 4: return 'icon_label_cleaning';
+      case 5: return 'icon_label_biotech';
+      case 6: return 'icon_label_health';
+      case 7: return 'icon_label_kit';
+      case 8: return 'icon_label_electronics';
+      case 9: return 'icon_label_biotech';  // medical_information
+      case 10: return 'icon_label_pill';    // local_pharmacy
+      case 11: return 'icon_label_health';   // healing
+      case 12: return 'icon_label_liquid';  // opacity
+      case 13: return 'icon_label_health';  // masks
+      default: return 'icon_label_general';
+    }
+  }
+
   Widget _buildCategorySelector() {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: DropdownButtonFormField<ItemCategory>(
-        initialValue: _category,
+        // ignore: deprecated_member_use
+        value: _category,
         decoration: InputDecoration(
           labelText: context.tr('category'),
           filled: true,
@@ -244,12 +247,13 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
         onChanged: (v) {
           if (v != null) {
             final newCategory = v;
-            final newIconPool = _categoryIcons[newCategory] ?? [Icons.inventory_2];
-            final currentIconInPool = newIconPool.any((icon) => icon.codePoint == _iconCodePoint);
+            final indices = _categoryIconIndices[newCategory] ?? [0];
+            final currentIconInPool = indices.any((idx) => _allIcons[idx].codePoint == _iconCodePoint);
             setState(() {
               _category = newCategory;
               if (!currentIconInPool) {
-                _iconCodePoint = _defaultIcons[newCategory]?.codePoint ?? Icons.inventory_2.codePoint;
+                final defaultIdx = _defaultIconIndex[newCategory] ?? 0;
+                _iconCodePoint = _allIcons[defaultIdx].codePoint;
               }
             });
           }
