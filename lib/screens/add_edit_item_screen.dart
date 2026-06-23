@@ -112,55 +112,85 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
     );
   }
 
-  static const _itemIcons = [
-    Icons.inventory_2,
-    Icons.medication,
-    Icons.restaurant,
-    Icons.face,
-    Icons.cleaning_services,
-    Icons.science,
-    Icons.health_and_safety,
-    Icons.kitchen,
-    Icons.bolt,
-    Icons.medical_information,
-    Icons.local_pharmacy,
-    Icons.healing,
-    Icons.opacity,
-    Icons.masks,
-  ];
+  static const _defaultIcons = {
+    ItemCategory.drug: Icons.medication,
+    ItemCategory.food: Icons.restaurant,
+    ItemCategory.cosmetic: Icons.face,
+    ItemCategory.dailyNecessity: Icons.cleaning_services,
+    ItemCategory.electronics: Icons.bolt,
+    ItemCategory.other: Icons.inventory_2,
+  };
 
-  static const _iconLabelKeys = [
-    'icon_label_general',
-    'icon_label_pill',
-    'icon_label_liquid',
-    'icon_label_spray',
-    'icon_label_granule',
-    'icon_label_capsule',
-    'icon_label_drops',
-    'icon_label_health',
-    'icon_label_kit',
-    'icon_label_biotech',
-    'icon_label_food',
-    'icon_label_cosmetics',
-    'icon_label_cleaning',
-    'icon_label_electronics',
-  ];
+  static const Map<ItemCategory, List<IconData>> _categoryIcons = {
+    ItemCategory.drug: [
+      Icons.medication,
+      Icons.local_pharmacy,
+      Icons.health_and_safety,
+      Icons.medical_information,
+      Icons.science,
+      Icons.masks,
+      Icons.opacity,
+      Icons.inventory_2,
+    ],
+    ItemCategory.food: [
+      Icons.restaurant,
+      Icons.kitchen,
+      Icons.inventory_2,
+    ],
+    ItemCategory.cosmetic: [
+      Icons.face,
+      Icons.opacity,
+      Icons.inventory_2,
+    ],
+    ItemCategory.dailyNecessity: [
+      Icons.cleaning_services,
+      Icons.inventory_2,
+      Icons.kitchen,
+    ],
+    ItemCategory.electronics: [
+      Icons.bolt,
+      Icons.inventory_2,
+    ],
+    ItemCategory.other: [
+      Icons.inventory_2,
+      Icons.category,
+    ],
+  };
+
+  static final Map<IconData, String> _iconLabelKeys = {
+    Icons.inventory_2: 'icon_label_general',
+    Icons.medication: 'icon_label_pill',
+    Icons.local_pharmacy: 'icon_label_pill',
+    Icons.health_and_safety: 'icon_label_health',
+    Icons.medical_information: 'icon_label_biotech',
+    Icons.science: 'icon_label_biotech',
+    Icons.masks: 'icon_label_health',
+    Icons.opacity: 'icon_label_liquid',
+    Icons.restaurant: 'icon_label_food',
+    Icons.kitchen: 'icon_label_kit',
+    Icons.face: 'icon_label_cosmetics',
+    Icons.cleaning_services: 'icon_label_cleaning',
+    Icons.bolt: 'icon_label_electronics',
+    Icons.category: 'icon_label_general',
+  };
 
   Widget _buildIconPicker() {
+    final icons = _categoryIcons[_category] ?? [Icons.inventory_2];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: EdgeInsets.only(bottom: 8, left: 4),
-          child: Text(context.tr('icon_picker_title'), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+          padding: const EdgeInsets.only(bottom: 8, left: 4),
+          child: Text(context.tr('icon_picker_title'), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
         ),
         Wrap(
           spacing: 12,
           runSpacing: 12,
-          children: List.generate(_itemIcons.length, (i) {
-            final selected = _iconCodePoint == _itemIcons[i].codePoint;
+          children: icons.map((icon) {
+            final selected = _iconCodePoint == icon.codePoint;
+            final labelKey = _iconLabelKeys[icon] ?? 'icon_label_general';
             return GestureDetector(
-              onTap: () => setState(() => _iconCodePoint = _itemIcons[i].codePoint),
+              onTap: () => setState(() => _iconCodePoint = icon.codePoint),
               child: Container(
                 width: 56,
                 padding: const EdgeInsets.symmetric(vertical: 8),
@@ -173,14 +203,14 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
                 ),
                 child: Column(
                   children: [
-                    Icon(_itemIcons[i], color: selected ? Colors.white : AppColors.textSecondary, size: 24),
+                    Icon(icon, color: selected ? Colors.white : AppColors.textSecondary, size: 24),
                     const SizedBox(height: 2),
-                    Text(context.tr(_iconLabelKeys[i]), style: TextStyle(fontSize: 10, color: selected ? Colors.white : AppColors.textSecondary)),
+                    Text(context.tr(labelKey), style: TextStyle(fontSize: 10, color: selected ? Colors.white : AppColors.textSecondary), overflow: TextOverflow.ellipsis, textAlign: TextAlign.center),
                   ],
                 ),
               ),
             );
-          }),
+          }).toList(),
         ),
       ],
     );
@@ -206,12 +236,23 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
             ItemCategory.food => 'category_food',
             ItemCategory.cosmetic => 'category_cosmetic',
             ItemCategory.dailyNecessity => 'category_daily_necessity',
+            ItemCategory.electronics => 'category_electronics',
             ItemCategory.other => 'category_other',
           };
           return DropdownMenuItem(value: c, child: Text(context.tr(key)));
         }).toList(),
         onChanged: (v) {
-          if (v != null) setState(() => _category = v);
+          if (v != null) {
+            final newCategory = v;
+            final newIconPool = _categoryIcons[newCategory] ?? [Icons.inventory_2];
+            final currentIconInPool = newIconPool.any((icon) => icon.codePoint == _iconCodePoint);
+            setState(() {
+              _category = newCategory;
+              if (!currentIconInPool) {
+                _iconCodePoint = _defaultIcons[newCategory]?.codePoint ?? Icons.inventory_2.codePoint;
+              }
+            });
+          }
         },
       ),
     );
@@ -436,7 +477,7 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
             borderSide: BorderSide.none,
           ),
         ),
-        validator: label.contains('*') ? (v) => (v == null || v.trim().isEmpty) ? '${context.tr('loading')}' : null : null,
+        validator: label.contains('*') ? (v) => (v == null || v.trim().isEmpty) ? context.tr('loading') : null : null,
       ),
     );
   }

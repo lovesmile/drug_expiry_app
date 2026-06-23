@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
-import '../constants.dart';
 import '../models/item.dart';
 import '../providers/item_provider.dart';
 import '../providers/user_provider.dart';
-import '../widgets/item_card.dart';
-import '../widgets/empty_state.dart';
+import '../design/app_colors.dart';
+import '../design/widgets/modern_item_card.dart';
+import '../design/widgets/modern_empty_state.dart';
 import '../widgets/loading_indicator.dart';
 import '../l10n/app_localizations.dart';
 import 'add_edit_item_screen.dart';
@@ -43,17 +44,17 @@ class _ItemListScreenState extends State<ItemListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bgMain,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
         centerTitle: false,
-        title: Text(context.tr('app_name'), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
+        title: Text(context.tr('app_name'), style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
         actions: [
           IconButton(
-            icon: const Icon(Icons.qr_code_scanner),
+            icon: Icon(Icons.qr_code_scanner),
             onPressed: () async {
-              final result = await Navigator.push<ScanResult>(context, MaterialPageRoute(builder: (_) => const ScanScreen()));
-              if (result != null && mounted) {
-                Navigator.push(context, MaterialPageRoute(
+              final result = await Navigator.push<ScanResult>(context, CupertinoPageRoute(builder: (_) => const ScanScreen()));
+              if (result != null && context.mounted) {
+                Navigator.push(context, CupertinoPageRoute(
                   builder: (_) => AddEditItemScreen(
                     initialName: result.barcode,
                     barcodeResult: result.lookup,
@@ -64,7 +65,7 @@ class _ItemListScreenState extends State<ItemListScreen> {
           ),
           Consumer<ItemProvider>(
             builder: (context, provider, _) => PopupMenuButton<String>(
-              icon: const Icon(Icons.sort_outlined),
+              icon: Icon(Icons.sort_outlined),
               tooltip: context.tr('sort'),
               onSelected: (v) {
                 switch (v) {
@@ -114,8 +115,8 @@ class _ItemListScreenState extends State<ItemListScreen> {
               ],
             ),
           ),
-          IconButton(icon: const Icon(Icons.wifi_tethering), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FamilyScreen()))),
-          IconButton(icon: const Icon(Icons.settings_outlined), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()))),
+          IconButton(icon: Icon(Icons.wifi_tethering), onPressed: () => Navigator.push(context, CupertinoPageRoute(builder: (_) => const FamilyScreen()))),
+          IconButton(icon: Icon(Icons.settings_outlined), onPressed: () => Navigator.push(context, CupertinoPageRoute(builder: (_) => const SettingsScreen()))),
         ],
       ),
       body: SafeArea(
@@ -129,8 +130,8 @@ class _ItemListScreenState extends State<ItemListScreen> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AddEditItemScreen())),
-        child: const Icon(Icons.add, color: Colors.white),
+        onPressed: () => Navigator.push(context, CupertinoPageRoute(builder: (_) => const AddEditItemScreen())),
+        child: Icon(Icons.add, color: Colors.white),
       ),
     );
   }
@@ -139,21 +140,21 @@ class _ItemListScreenState extends State<ItemListScreen> {
     return Consumer<ItemProvider>(
       builder: (context, provider, _) {
         return Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          padding: EdgeInsets.fromLTRB(16, 12, 16, 0),
           child: Card(
             elevation: 0,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.cardRadius)),
+            shape: RoundedRectangleBorder(borderRadius: AppRadius.large),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 children: [
                   _statItem(context.tr('total_count'), provider.totalCount, Theme.of(context).colorScheme.primary),
                   _statDivider(),
-                  _statItem(context.tr('drug_status_valid'), provider.validCount, AppColors.statusSuccess),
+                  _statItem(context.tr('drug_status_valid'), provider.validCount, AppPalette.statusValid),
                   _statDivider(),
-                  _statItem(context.tr('drug_status_warning'), provider.warningCount, AppColors.statusWarning),
+                  _statItem(context.tr('drug_status_warning'), provider.warningCount, AppPalette.statusWarning),
                   _statDivider(),
-                  _statItem(context.tr('drug_status_expired'), provider.expiredCount, AppColors.statusError),
+                  _statItem(context.tr('drug_status_expired'), provider.expiredCount, AppPalette.statusExpired),
                 ],
               ),
             ),
@@ -168,31 +169,31 @@ class _ItemListScreenState extends State<ItemListScreen> {
       child: Column(
         children: [
           Text(count.toString(), style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color)),
-          Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+          Text(label, style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
         ],
       ),
     );
   }
 
   Widget _statDivider() {
-    return Container(width: 1, height: 32, color: AppColors.divider);
+    return Container(width: 1, height: 32, color: Theme.of(context).colorScheme.outlineVariant);
   }
 
   Widget _buildSearchBar() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
       child: TextField(
         controller: _searchController,
         onChanged: (v) => context.read<ItemProvider>().setSearchQuery(v),
         decoration: InputDecoration(
           hintText: context.tr('search_hint'),
-          hintStyle: const TextStyle(color: AppColors.textDisabled, fontSize: 14),
-          prefixIcon: const Icon(Icons.search, size: 20, color: AppColors.textSecondary),
+          hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
+          prefixIcon: Icon(Icons.search, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
           suffixIcon: ListenableBuilder(
             listenable: _searchController,
             builder: (context, _) => _searchController.text.isNotEmpty
                 ? IconButton(
-                    icon: const Icon(Icons.clear, size: 18),
+                    icon: Icon(Icons.clear, size: 18),
                     onPressed: () {
                       _searchController.clear();
                       context.read<ItemProvider>().setSearchQuery('');
@@ -201,9 +202,9 @@ class _ItemListScreenState extends State<ItemListScreen> {
                 : const SizedBox.shrink(),
           ),
           filled: true,
-          fillColor: AppColors.bgSurface,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.inputRadius), borderSide: BorderSide.none),
+          fillColor: Theme.of(context).colorScheme.surface,
+          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          border: OutlineInputBorder(borderRadius: AppRadius.small, borderSide: BorderSide.none),
         ),
       ),
     );
@@ -213,7 +214,7 @@ class _ItemListScreenState extends State<ItemListScreen> {
     return Consumer<ItemProvider>(
       builder: (context, provider, _) {
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           child: Row(
             children: [
               _buildTab(0, context.tr('tab_all'), provider.showArchived ? _totalWithArchived(provider) : provider.activeItems.length),
@@ -226,7 +227,7 @@ class _ItemListScreenState extends State<ItemListScreen> {
               GestureDetector(
                 onTap: () => context.read<ItemProvider>().toggleShowArchived(),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                   decoration: BoxDecoration(
                     border: Border(
                       bottom: BorderSide(color: provider.showArchived ? Theme.of(context).colorScheme.primary : Colors.transparent, width: 2),
@@ -238,14 +239,14 @@ class _ItemListScreenState extends State<ItemListScreen> {
                       Icon(
                         Icons.archive_outlined,
                         size: 16,
-                        color: provider.showArchived ? Theme.of(context).colorScheme.primary : AppColors.textSecondary,
+                        color: provider.showArchived ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                       const SizedBox(height: 2),
                       Text(
                         context.tr('tab_archived'),
                         style: TextStyle(
                           fontSize: 11,
-                          color: provider.showArchived ? Theme.of(context).colorScheme.primary : AppColors.textSecondary,
+                          color: provider.showArchived ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -269,7 +270,7 @@ class _ItemListScreenState extends State<ItemListScreen> {
       child: GestureDetector(
         onTap: () => setState(() => _selectedTab = index),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 6),
+          padding: EdgeInsets.symmetric(vertical: 6),
           decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(color: selected ? Theme.of(context).colorScheme.primary : Colors.transparent, width: 2),
@@ -286,7 +287,7 @@ class _ItemListScreenState extends State<ItemListScreen> {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                  color: selected ? Theme.of(context).colorScheme.primary : AppColors.textSecondary,
+                  color: selected ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
               Text(
@@ -295,7 +296,7 @@ class _ItemListScreenState extends State<ItemListScreen> {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
-                  color: selected ? Theme.of(context).colorScheme.primary : AppColors.textDisabled,
+                  color: selected ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
@@ -323,12 +324,11 @@ class _ItemListScreenState extends State<ItemListScreen> {
               physics: const AlwaysScrollableScrollPhysics(),
               child: SizedBox(
                 height: MediaQuery.of(context).size.height * 0.5,
-                child: EmptyState(
-                  icon: Icons.inventory_2_outlined,
+                child: ModernEmptyState(
                   title: _selectedTab == 0 ? context.tr('empty_title') : context.tr('empty_title_filtered'),
                   subtitle: context.tr('empty_subtitle'),
                   actionLabel: context.tr('add_drug'),
-                  onAction: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AddEditItemScreen())),
+                  onAction: () => Navigator.push(context, CupertinoPageRoute(builder: (_) => const AddEditItemScreen())),
                 ),
               ),
             ),
@@ -339,15 +339,15 @@ class _ItemListScreenState extends State<ItemListScreen> {
           color: Theme.of(context).colorScheme.primary,
           onRefresh: provider.loadItems,
           child: ListView.builder(
-            padding: const EdgeInsets.only(top: 4, bottom: 80),
+            padding: EdgeInsets.only(top: 4, bottom: 80),
             itemCount: list.length,
             itemBuilder: (context, index) {
               final item = list[index];
-              return ItemCard(
+              return ModernItemCard(
                 item: item,
                 onTap: () => Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => ItemDetailScreen(itemId: item.id!)),
+                  CupertinoPageRoute(builder: (_) => ItemDetailScreen(itemId: item.id!)),
                 ),
                 onDelete: () => _confirmDelete(item.id!),
               );
@@ -369,9 +369,10 @@ class _ItemListScreenState extends State<ItemListScreen> {
           TextButton(
             onPressed: () {
               context.read<ItemProvider>().deleteItem(id);
+              context.read<UserProvider>().decrementRecordCount();
               Navigator.pop(ctx);
             },
-            child: Text(context.tr('delete'), style: const TextStyle(color: AppColors.statusError)),
+            child: Text(context.tr('delete'), style: TextStyle(color: AppPalette.statusExpired)),
           ),
         ],
       ),
