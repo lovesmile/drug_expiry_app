@@ -49,7 +49,7 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
     _manufacturerCtrl = TextEditingController(text: d?.manufacturer ?? br?.manufacturer ?? '');
     _expiryDate = d?.expiryDate ?? DateTime.now().add(const Duration(days: 365));
     _category = d?.category ?? ItemCategory.drug;
-    _iconCodePoint = d?.iconCodePoint ?? _categoryIcon[_category]!.codePoint;
+    _iconCodePoint = d?.iconCodePoint ?? _allIcons[_categoryDefaultIdx[_category] ?? 0].codePoint;
   }
 
   @override
@@ -112,49 +112,50 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
     );
   }
 
-  // One icon per category — simple and clear
-  static const Map<ItemCategory, IconData> _categoryIcon = {
-    ItemCategory.drug: Icons.medication,
-    ItemCategory.food: Icons.restaurant,
-    ItemCategory.cosmetic: Icons.face,
-    ItemCategory.dailyNecessity: Icons.cleaning_services,
-    ItemCategory.electronics: Icons.devices,
-    ItemCategory.other: Icons.inventory_2,
+  // Default icon index for each category (maps to _allIcons index)
+  static const Map<ItemCategory, int> _categoryDefaultIdx = {
+    ItemCategory.drug: 0,
+    ItemCategory.food: 1,
+    ItemCategory.cosmetic: 2,
+    ItemCategory.dailyNecessity: 3,
+    ItemCategory.electronics: 7,
+    ItemCategory.other: 8,
   };
 
-  // All icons available for manual selection (no subcategory grouping)
+  // 14 icons in fixed order, matching 14 unique label keys
   static const _allIcons = [
-    Icons.medication,             // 药片
-    Icons.local_pharmacy,          // 药房
-    Icons.healing,                 // 治愈
-    Icons.medical_information,     // 医疗信息
-    Icons.restaurant,              // 餐厅/食品
-    Icons.local_drink,             // 饮料
-    Icons.face,                    // 面部/美妆
-    Icons.spa,                     // 水疗/护肤
-    Icons.cleaning_services,       // 清洁
-    Icons.kitchen,                 // 厨房
-    Icons.devices,                 // 设备/电子
-    Icons.bolt,                    // 电力/电子
-    Icons.inventory_2,             // 库存/通用
-    Icons.category,                // 分类/其他
+    Icons.medication,             // 0  icon_label_pill      药片
+    Icons.restaurant,             // 1  icon_label_food      食品
+    Icons.face,                   // 2  icon_label_cosmetics 美妆
+    Icons.cleaning_services,      // 3  icon_label_cleaning  清洁
+    Icons.science,                // 4  icon_label_biotech   日用
+    Icons.health_and_safety,      // 5  icon_label_health    保健
+    Icons.kitchen,                // 6  icon_label_kit       箱包
+    Icons.bolt,                   // 7  icon_label_electronics 电子
+    Icons.inventory_2,            // 8  icon_label_general   通用
+    Icons.spa,                    // 9  icon_label_spray     喷雾（护肤）
+    Icons.local_pharmacy,         // 10 icon_label_capsule   胶囊（药房）
+    Icons.healing,                // 11 icon_label_drops     滴剂（治愈）
+    Icons.opacity,                // 12 icon_label_granule   颗粒
+    Icons.masks,                  // 13 icon_label_liquid    液体
   ];
 
+  // 14 unique label keys matching indices above
   static const _allIconLabelKeys = [
-    'icon_label_pill',           // 0
-    'icon_label_pharmacy',       // 1 (reuse pill — same semantic)
-    'icon_label_health',         // 2 (healing → health)
-    'icon_label_biotech',        // 3 (medical info → biotech)
-    'icon_label_food',           // 4
-    'icon_label_liquid',         // 5 (local_drink → liquid)
-    'icon_label_cosmetics',      // 6
-    'icon_label_health',         // 7 (spa → health)
-    'icon_label_cleaning',       // 8
-    'icon_label_kit',            // 9 (kitchen → kit)
-    'icon_label_electronics',    // 10 (devices → electronics)
-    'icon_label_electronics',    // 11 (bolt → electronics)
-    'icon_label_general',        // 12 (inventory)
-    'icon_label_category',       // 13 (category)
+    'icon_label_pill',         // 0
+    'icon_label_food',         // 1
+    'icon_label_cosmetics',    // 2
+    'icon_label_cleaning',     // 3
+    'icon_label_biotech',      // 4
+    'icon_label_health',       // 5
+    'icon_label_kit',          // 6
+    'icon_label_electronics',  // 7
+    'icon_label_general',     // 8
+    'icon_label_spray',        // 9
+    'icon_label_capsule',      // 10
+    'icon_label_drops',        // 11
+    'icon_label_granule',      // 12
+    'icon_label_liquid',       // 13
   ];
 
   Widget _buildIconPicker() {
@@ -234,7 +235,7 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
             setState(() {
               _category = v;
               // Reset icon to category default when switching category
-              _iconCodePoint = _categoryIcon[v]!.codePoint;
+              _iconCodePoint = _allIcons[_categoryDefaultIdx[v] ?? 0].codePoint;
             });
           }
         },

@@ -1,6 +1,5 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:local_auth/local_auth.dart';
-import '../constants.dart';
 import '../l10n/app_localizations.dart';
 
 class LockScreen extends StatefulWidget {
@@ -74,14 +73,14 @@ class _LockScreenState extends State<LockScreen> {
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: AppColors.brandSecondary,
+                color: Theme.of(context).colorScheme.primaryContainer,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Icon(Icons.lock_outline, size: 40, color: Theme.of(context).colorScheme.primary),
             ),
             const SizedBox(height: 24),
             const Text(
-              AppStrings.appName,
+              '到期管家',
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 32),
@@ -91,16 +90,16 @@ class _LockScreenState extends State<LockScreen> {
                 child: Text(
                   _error,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: AppColors.statusError, fontSize: 14),
+                  style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 14),
                 ),
               )
             else
               CircularProgressIndicator(color: Theme.of(context).colorScheme.primary),
             const SizedBox(height: 48),
-            if (!_supported)
+            if (!_supported || _error.isNotEmpty)
               FilledButton(
-                onPressed: _skip,
-                child: Text(context.tr('lock_enter')),
+                onPressed: _error.isNotEmpty ? _checkAuth : _skip,
+                child: Text(_error.isNotEmpty ? '重试' : context.tr('lock_enter')),
               ),
           ],
         ),

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
+import '../design/app_colors.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../constants.dart';
+import 'package:local_auth/local_auth.dart';
+import '../constants.dart' as const_alias;
 import '../providers/settings_provider.dart';
 import '../providers/user_provider.dart';
 import '../services/barcode_service.dart';
@@ -104,7 +107,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(context.tr('cancel'))),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text(context.tr('clear'), style: TextStyle(color: AppColors.statusError)),
+            child: Text(context.tr('clear'), style: TextStyle(color: Theme.of(context).colorScheme.error)),
           ),
         ],
       ),
@@ -143,6 +146,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         allowMultiple: false,
       );
       if (result != null && result.files.single.path != null) {
+        if (!mounted) return;
         final confirm = await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
@@ -207,7 +211,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (ctx) => AlertDialog(
         title: Text(title),
         content: SingleChildScrollView(
-          child: Text(content, style: const TextStyle(fontSize: 13, color: AppColors.textBody, height: 1.6)),
+          child: Text(content, style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface, height: 1.6)),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: Text(context.tr('close'))),
@@ -443,7 +447,7 @@ Third-Party SDKs used in this app:
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bgMain,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(title: Text(context.tr('settings'))),
       body: Consumer2<SettingsProvider, UserProvider>(
         builder: (context, settingsProvider, userProvider, _) {
@@ -462,7 +466,7 @@ Third-Party SDKs used in this app:
               _buildSection(context.tr('personal_info'), [
                 ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: AppColors.brandSecondary,
+                    backgroundColor: Theme.of(context).colorScheme.primaryContainer,
                     child: Text(
                       (user?.nickname ?? '管')[0],
                       style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.w600),
@@ -470,7 +474,7 @@ Third-Party SDKs used in this app:
                   ),
                   title: Text(user?.nickname ?? context.tr('admin')),
                   subtitle: Text(context.tr('drug_count', {'count': (user?.recordCount ?? 0).toString()})),
-                  trailing: const Icon(Icons.edit_outlined, color: AppColors.textSecondary),
+                  trailing: Icon(Icons.edit_outlined, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   onTap: _editNickname,
                 ),
               ]),
@@ -480,29 +484,29 @@ Third-Party SDKs used in this app:
                 ListTile(
                   leading: Icon(Icons.palette_outlined, color: Theme.of(context).colorScheme.primary),
                   title: Text(context.tr('theme_color')),
-                  subtitle: Text(context.tr(AppTheme.labelKeys[settingsProvider.themeColor] ?? 'theme_green')),
+                  subtitle: Text(context.tr(const_alias.AppTheme.labelKeys[settingsProvider.themeColor] ?? 'theme_green')),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      for (final c in AppTheme.options)
+                      for (final c in const_alias.AppTheme.options)
                         GestureDetector(
                           onTap: () => settingsProvider.setThemeColor(c),
                           child: Container(
                             width: 28,
                             height: 28,
-                            margin: const EdgeInsets.only(left: 6),
+                            margin: EdgeInsets.only(left: 6),
                             decoration: BoxDecoration(
-                              color: AppTheme.seeds[c],
+                              color: const_alias.AppTheme.seeds[c],
                               shape: BoxShape.circle,
                               border: Border.all(
                                 color: settingsProvider.themeColor == c
-                                    ? AppColors.textPrimary
+                                    ? Theme.of(context).colorScheme.onSurface
                                     : Colors.transparent,
                                 width: 2.5,
                               ),
                             ),
                             child: settingsProvider.themeColor == c
-                                ? const Icon(Icons.check, size: 16, color: Colors.white)
+                                ? Icon(Icons.check, size: 16, color: Colors.white)
                                 : null,
                           ),
                         ),
@@ -517,7 +521,12 @@ Third-Party SDKs used in this app:
                 _buildSwitchTile(context.tr('follow_system'), '', settingsProvider.darkModeFollowSystem, (v) {
                   settingsProvider.setDarkModeFollowSystem(v);
                 }),
-                _buildSwitchTile(context.tr('app_lock'), context.tr('app_lock_sub'), settingsProvider.appLockEnabled, (v) {
+                _buildSwitchTile(context.tr('app_lock'), context.tr('app_lock_sub'), settingsProvider.appLockEnabled, (v) async {
+                  if (v) {
+                    // Verify biometric capability before enabling
+                    final canAuth = await _verifyBiometric();
+                    if (!canAuth) return;
+                  }
                   settingsProvider.setAppLockEnabled(v);
                 }),
               ]),
@@ -567,7 +576,7 @@ Third-Party SDKs used in this app:
                   title: Text(context.tr('cache_count', {'count': _cacheCount.toString()})),
                   subtitle: Text(context.tr('cache_subtitle')),
                   trailing: IconButton(
-                    icon: const Icon(Icons.refresh, color: AppColors.textSecondary),
+                    icon: Icon(Icons.refresh, color: Theme.of(context).colorScheme.onSurfaceVariant),
                     onPressed: _loadCacheCount,
                   ),
                 ),
@@ -585,7 +594,7 @@ Third-Party SDKs used in this app:
                     onTap: _importCache,
                   ),
                   ListTile(
-                    leading: const Icon(Icons.delete_outline, color: AppColors.statusError),
+                    leading: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
                     title: Text(context.tr('cache_clear')),
                     onTap: _clearCache,
                   ),
@@ -609,47 +618,47 @@ Third-Party SDKs used in this app:
               const SizedBox(height: 24),
               _buildSection(context.tr('premium_title'), [
                 ListTile(
-                  leading: Icon(Icons.workspace_premium, color: AppColors.brandPrimary),
-                  title: Text(context.tr('premium_title'), style: const TextStyle(fontWeight: FontWeight.w600)),
+                  leading: Icon(Icons.workspace_premium, color: Theme.of(context).colorScheme.primary),
+                  title: Text(context.tr('premium_title'), style: TextStyle(fontWeight: FontWeight.w600)),
                   subtitle: Consumer<UserProvider>(
                     builder: (context, up, _) => Text(
                       up.user?.isPremium == true ? context.tr('premium_already_owned') : context.tr('premium_subtitle'),
-                      style: const TextStyle(color: AppColors.brandPrimary, fontSize: 13),
+                      style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 13),
                     ),
                   ),
-                  trailing: const Icon(Icons.chevron_right, color: AppColors.textDisabled),
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PremiumScreen())),
+                  trailing: Icon(Icons.chevron_right, color: Theme.of(context).colorScheme.outline),
+                  onTap: () => Navigator.push(context, CupertinoPageRoute(builder: (_) => const PremiumScreen())),
                 ),
               ]),
               const SizedBox(height: 24),
               _buildSection(context.tr('about'), [
                 ListTile(
-                  leading: const Icon(Icons.feedback_outlined, color: AppColors.textSecondary, size: 20),
+                  leading: Icon(Icons.feedback_outlined, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 20),
                   title: Text(context.tr('feedback')),
                   subtitle: Text(context.tr('feedback_sub')),
-                  trailing: const Icon(Icons.chevron_right, color: AppColors.textDisabled),
+                  trailing: Icon(Icons.chevron_right, color: Theme.of(context).colorScheme.outline),
                   onTap: _sendFeedback,
                 ),
                 ListTile(
                   title: Text(context.tr('version')),
-                  trailing: const Text('v1.0.0', style: TextStyle(color: AppColors.textSecondary)),
+                  trailing: Text('v1.0.0', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
                 ),
                 ListTile(
-                  leading: const Icon(Icons.privacy_tip_outlined, color: AppColors.textSecondary, size: 20),
+                  leading: Icon(Icons.privacy_tip_outlined, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 20),
                   title: Text(context.tr('privacy_policy')),
-                  trailing: const Icon(Icons.chevron_right, color: AppColors.textDisabled),
+                  trailing: Icon(Icons.chevron_right, color: Theme.of(context).colorScheme.outline),
                   onTap: () => _showPolicy('privacy'),
                 ),
                 ListTile(
-                  leading: const Icon(Icons.description_outlined, color: AppColors.textSecondary, size: 20),
+                  leading: Icon(Icons.description_outlined, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 20),
                   title: Text(context.tr('user_agreement')),
-                  trailing: const Icon(Icons.chevron_right, color: AppColors.textDisabled),
+                  trailing: Icon(Icons.chevron_right, color: Theme.of(context).colorScheme.outline),
                   onTap: () => _showPolicy('terms'),
                 ),
                 ListTile(
-                  leading: const Icon(Icons.api_outlined, color: AppColors.textSecondary, size: 20),
+                  leading: Icon(Icons.api_outlined, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 20),
                   title: Text(context.tr('sdk_list')),
-                  trailing: const Icon(Icons.chevron_right, color: AppColors.textDisabled),
+                  trailing: Icon(Icons.chevron_right, color: Theme.of(context).colorScheme.outline),
                   onTap: () => _showPolicy('sdk'),
                 ),
               ]),
@@ -665,12 +674,12 @@ Third-Party SDKs used in this app:
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(bottom: 8, left: 4),
-          child: Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+          padding: EdgeInsets.only(bottom: 8, left: 4),
+          child: Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onSurfaceVariant)),
         ),
         Card(
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.cardRadius)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
           child: Column(children: children),
         ),
       ],
@@ -680,7 +689,7 @@ Third-Party SDKs used in this app:
   Widget _buildSwitchTile(String title, String subtitle, bool value, ValueChanged<bool> onChanged) {
     return SwitchListTile(
       title: Text(title),
-      subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
+      subtitle: Text(subtitle, style: TextStyle(fontSize: 12)),
       value: value,
       activeTrackColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
       activeThumbColor: Theme.of(context).colorScheme.primary,
@@ -690,8 +699,8 @@ Third-Party SDKs used in this app:
 
   Widget _buildTimeTile(String title, String currentTime, ValueChanged<String> onChanged) {
     return ListTile(
-      title: Text(title, style: const TextStyle(fontSize: 14, color: AppColors.textSecondary)),
-      trailing: Text(currentTime, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+      title: Text(title, style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+      trailing: Text(currentTime, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
       onTap: () async {
         final parts = currentTime.split(':');
         final initial = TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
@@ -700,6 +709,36 @@ Third-Party SDKs used in this app:
           onChanged('${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}');
         }
       },
+    );
+  }
+
+  Future<bool> _verifyBiometric() async {
+    final auth = LocalAuthentication();
+    try {
+      final canAuth = await auth.canCheckBiometrics || await auth.isDeviceSupported();
+      if (!canAuth) {
+        _showBiometricError('此设备不支持生物识别');
+        return false;
+      }
+      final result = await auth.authenticate(
+        localizedReason: '验证生物识别以开启应用锁',
+        options: const AuthenticationOptions(biometricOnly: false),
+      );
+      if (!result) {
+        _showBiometricError('生物识别验证失败');
+        return false;
+      }
+      return true;
+    } catch (e) {
+      _showBiometricError('验证出错：$e');
+      return false;
+    }
+  }
+
+  void _showBiometricError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Theme.of(context).colorScheme.error),
     );
   }
 }
