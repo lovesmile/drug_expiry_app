@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/cupertino.dart';
 import '../design/app_colors.dart';
 import 'package:provider/provider.dart';
@@ -729,9 +730,29 @@ Third-Party SDKs used in this app:
         return false;
       }
       return true;
+    } on PlatformException catch (e) {
+      _showBiometricError(_biometricErrorMessage(e));
+      return false;
     } catch (e) {
       _showBiometricError('验证出错：$e');
       return false;
+    }
+  }
+
+  String _biometricErrorMessage(PlatformException e) {
+    switch (e.code) {
+      case 'NotAvailable':
+        return '生物识别功能不可用';
+      case 'NotEnrolled':
+        return '未设置生物识别，请先在系统设置中添加指纹或面容';
+      case 'LockedOut':
+        return '生物识别已被锁定，请稍后再试';
+      case 'PermanentlyLockedOut':
+        return '生物识别已被永久锁定，请在系统设置中重置';
+      case 'PasscodeNotSet':
+        return '设备未设置锁屏密码，请先在系统设置中设置';
+      default:
+        return '验证失败：${e.message ?? e.code}';
     }
   }
 
