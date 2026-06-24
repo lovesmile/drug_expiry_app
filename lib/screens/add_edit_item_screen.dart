@@ -367,13 +367,38 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
               InkWell(
                 onTap: _pickDate,
                 child: InputDecorator(
-                  decoration: InputDecoration(labelText: '${context.tr('expiry_date')} *', prefixIcon: Icon(Icons.calendar_today)),
+                  decoration: InputDecoration(
+                    labelText: '${_category == ItemCategory.electronics ? '保修截止日期' : context.tr('expiry_date')} *',
+                    prefixIcon: Icon(_category == ItemCategory.electronics ? Icons.verified_user_outlined : Icons.calendar_today),
+                  ),
                   child: Text(
                     '${_expiryDate.year}-${_expiryDate.month.toString().padLeft(2, '0')}-${_expiryDate.day.toString().padLeft(2, '0')}',
                     style: const TextStyle(fontSize: 16),
                   ),
                 ),
               ),
+              if (_category == ItemCategory.electronics) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, size: 16, color: Theme.of(context).colorScheme.primary),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          context.tr('electronics_warranty_hint'),
+                          style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ]),
             const SizedBox(height: 16),
             _buildSection(context.tr('photo_section'), [
