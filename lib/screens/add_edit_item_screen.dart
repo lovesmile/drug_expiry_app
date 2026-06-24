@@ -122,40 +122,40 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
     ItemCategory.other: 8,
   };
 
-  // 14 icons in fixed order, matching 14 unique label keys
+  // 14 icons mapped to 14 unique label keys (no duplicates)
+  // Labels: 药片, 食品, 酒水饮料, 美妆, 日用, 电子, 通用, 其他, 保健, 胶囊, 液体, 喷雾, 颗粒, 滴剂
   static const _allIcons = [
-    Icons.medication,             // 0  icon_label_pill      药片
-    Icons.restaurant,             // 1  icon_label_food      食品
-    Icons.face,                   // 2  icon_label_cosmetics 美妆
-    Icons.cleaning_services,      // 3  icon_label_cleaning  清洁
-    Icons.science,                // 4  icon_label_biotech   日用
-    Icons.health_and_safety,      // 5  icon_label_health    保健
-    Icons.kitchen,                // 6  icon_label_kit       箱包
-    Icons.bolt,                   // 7  icon_label_electronics 电子
-    Icons.inventory_2,            // 8  icon_label_general   通用
-    Icons.spa,                    // 9  icon_label_spray     喷雾（护肤）
-    Icons.local_pharmacy,         // 10 icon_label_capsule   胶囊（药房）
-    Icons.healing,                // 11 icon_label_drops     滴剂（治愈）
-    Icons.opacity,                // 12 icon_label_granule   颗粒
-    Icons.masks,                  // 13 icon_label_liquid    液体
+    Icons.medication,             // 0  icon_label_pill        药片
+    Icons.restaurant,             // 1  icon_label_food        食品
+    Icons.local_drink,             // 2  icon_label_drinks     酒水饮料
+    Icons.face,                   // 3  icon_label_cosmetics   美妆
+    Icons.science,                // 4  icon_label_biotech     日用
+    Icons.devices,                // 5  icon_label_electronics  电子
+    Icons.inventory_2,            // 6  icon_label_general     通用
+    Icons.category,               // 7  icon_label_other       其他
+    Icons.health_and_safety,      // 8  icon_label_health      保健
+    Icons.local_pharmacy,         // 9  icon_label_capsule     胶囊
+    Icons.opacity,               // 10 icon_label_liquid      液体
+    Icons.spa,                   // 11 icon_label_spray       喷雾
+    Icons.grain,                 // 12 icon_label_granule     颗粒
+    Icons.water_drop,            // 13 icon_label_drops       滴剂
   ];
 
-  // 14 unique label keys matching indices above
   static const _allIconLabelKeys = [
     'icon_label_pill',         // 0
     'icon_label_food',         // 1
-    'icon_label_cosmetics',    // 2
-    'icon_label_cleaning',     // 3
+    'icon_label_drinks',       // 2
+    'icon_label_cosmetics',    // 3
     'icon_label_biotech',      // 4
-    'icon_label_health',       // 5
-    'icon_label_kit',          // 6
-    'icon_label_electronics',  // 7
-    'icon_label_general',     // 8
-    'icon_label_spray',        // 9
-    'icon_label_capsule',      // 10
-    'icon_label_drops',        // 11
+    'icon_label_electronics',  // 5
+    'icon_label_general',      // 6
+    'icon_label_other',        // 7
+    'icon_label_health',       // 8
+    'icon_label_capsule',      // 9
+    'icon_label_liquid',       // 10
+    'icon_label_spray',        // 11
     'icon_label_granule',      // 12
-    'icon_label_liquid',       // 13
+    'icon_label_drops',        // 13
   ];
 
   Widget _buildIconPicker() {

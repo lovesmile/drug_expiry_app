@@ -21,7 +21,8 @@ class AppLocalizations {
     var text = lang[key] ?? _en[key] ?? key;
     if (args != null) {
       for (final e in args.entries) {
-        text = text.replaceAll('{$e.key}', e.value);
+        // 用 ${...} 显式插值，避免 '$e.key' 被 Dart 解析成字面 '$e' + '.key'
+        text = text.replaceAll('{${e.key}}', e.value);
       }
     }
     return text;
@@ -129,9 +130,10 @@ class AppLocalizations {
     'icon_label_biotech': '日用',
     'icon_label_general': '通用',
     'icon_label_food': '食品',
+    'icon_label_drinks': '酒水饮料',
     'icon_label_cosmetics': '美妆',
-    'icon_label_cleaning': '清洁',
     'icon_label_electronics': '电子',
+    'icon_label_other': '其他',
     'photo_camera': '拍照',
     'photo_gallery': '相册',
     'photo_delete': '删除',
@@ -295,6 +297,27 @@ class AppLocalizations {
     'language': 'Language / 语言',
     'language_sub': '当前语言：{lang}',
     'locale_name': '中文',
+
+    // Warranty
+    'warranty': '保修期',
+    'warranty_section': '保修信息',
+    'purchase_date': '购买日期',
+    'purchase_date_hint': '点击选择购买日期',
+    'warranty_months': '保修时长（月）',
+    'warranty_months_hint': '如 12、24、36',
+    'warranty_months_value': '{months} 个月',
+    'warranty_end_date': '保修截止日期',
+    'warranty_status_valid': '保修中',
+    'warranty_status_warning': '即将过保',
+    'warranty_status_expired': '已过保',
+    'warranty_days_left': '剩余 {days} 天',
+    'warranty_days_remaining': '{days} 天',
+    'warranty_expired': '已过期',
+    'warranty_expired_days': '已过期 {days} 天',
+    'warranty_no_info': '无保修信息',
+
+    // Category
+    'category_electronics': '电子产品',
   };
 
   // ====== EN ======
@@ -399,9 +422,10 @@ class AppLocalizations {
     'icon_label_biotech': 'Daily',
     'icon_label_general': 'General',
     'icon_label_food': 'Food',
+    'icon_label_drinks': 'Drinks',
     'icon_label_cosmetics': 'Cosmetics',
-    'icon_label_cleaning': 'Cleaning',
     'icon_label_electronics': 'Electronics',
+    'icon_label_other': 'Other',
     'photo_camera': 'Camera',
     'photo_gallery': 'Gallery',
     'photo_delete': 'Delete',
@@ -565,6 +589,27 @@ class AppLocalizations {
     'language': 'Language / 语言',
     'language_sub': 'Current: {lang}',
     'locale_name': 'English',
+
+    // Warranty
+    'warranty': 'Warranty',
+    'warranty_section': 'Warranty Info',
+    'purchase_date': 'Purchase Date',
+    'purchase_date_hint': 'Tap to select purchase date',
+    'warranty_months': 'Warranty Period (months)',
+    'warranty_months_hint': 'e.g. 12, 24, 36',
+    'warranty_months_value': '{months} months',
+    'warranty_end_date': 'Warranty End Date',
+    'warranty_status_valid': 'In Warranty',
+    'warranty_status_warning': 'Expiring Soon',
+    'warranty_status_expired': 'Expired',
+    'warranty_days_left': '{days} days left',
+    'warranty_days_remaining': '{days} days',
+    'warranty_expired': 'Expired',
+    'warranty_expired_days': 'Expired {days} days ago',
+    'warranty_no_info': 'No warranty info',
+
+    // Category
+    'category_electronics': 'Electronics',
   };
 }
 
