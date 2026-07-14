@@ -57,6 +57,9 @@ android {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
+    // Android 12+ SplashScreen API 依赖；不加的话 values-v31/values-night-v31 引用
+    // style/Theme.SplashScreen 和 attr/postSplashScreenTheme 会 link 失败
+    implementation("androidx.core:core-splashscreen:1.0.1")
 }
 
 flutter {

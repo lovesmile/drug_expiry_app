@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../constants.dart';
+import '../design/app_colors.dart';
 import '../models/item.dart';
 import 'status_badge.dart';
 import 'countdown_display.dart';
@@ -14,27 +14,28 @@ class ItemCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       elevation: 0,
-      color: AppColors.bgSurface,
+      color: Theme.of(context).colorScheme.surface,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppSizes.cardRadius),
+        borderRadius: AppRadius.large,
       ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(AppSizes.cardRadius),
+        borderRadius: AppRadius.large,
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(16),
           child: Row(
             children: [
               Container(
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: AppColors.brandSecondary,
+                  color: AppPalette.statusValidLight,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(item.icon, color: Theme.of(context).colorScheme.primary),
+                child: Icon(item.icon,
+                    color: Theme.of(context).colorScheme.primary),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -46,10 +47,10 @@ class ItemCard extends StatelessWidget {
                         Expanded(
                           child: Text(
                             item.name,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w500,
-                              color: AppColors.textPrimary,
+                              color: Theme.of(context).colorScheme.onSurface,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -60,21 +61,32 @@ class ItemCard extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 4),
-                    if (item.specification != null && item.specification!.isNotEmpty)
+                    if (item.specification != null &&
+                        item.specification!.isNotEmpty)
                       Text(
                         item.specification!,
-                        style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                        style: TextStyle(
+                            fontSize: 13,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                     const SizedBox(height: 2),
-                    CountdownDisplay(date: item.expiryDate, status: item.status),
+                    if (item.hasDeadline)
+                      CountdownDisplay(
+                        date: item.deadlineDate!,
+                        status: item.status,
+                        deadlineType: item.deadlineType,
+                      ),
                   ],
                 ),
               ),
               if (onDelete != null)
                 IconButton(
-                  icon: const Icon(Icons.delete_outline, size: 20, color: AppColors.textDisabled),
+                  icon: Icon(Icons.delete_outline,
+                      size: 20,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant),
                   onPressed: onDelete,
                 ),
             ],

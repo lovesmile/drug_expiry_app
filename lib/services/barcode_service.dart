@@ -77,11 +77,11 @@ class BarcodeService {
       result = await _lookupOpenFoodFacts(barcode);
     }
 
-    if (result != null && result.isSuccess) {
+    if (result.isSuccess) {
       await _db.cacheBarcode(barcode, result.toMap());
     }
 
-    return result ?? BarcodeResult();
+    return result;
   }
 
   /// 阿里云市场（5000次/天免费，国内商品/药品）

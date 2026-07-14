@@ -21,36 +21,43 @@ class ItemProvider extends ChangeNotifier {
   bool get showArchived => _showArchived;
 
   int get totalCount => _items.length;
-  int get validCount => activeItems.where((d) => d.status == ItemStatus.valid).length;
-  int get warningCount => activeItems.where((d) => d.status == ItemStatus.warning).length;
-  int get expiredCount => activeItems.where((d) => d.status == ItemStatus.expired).length;
+  int get validCount =>
+      activeItems.where((d) => d.status == ItemStatus.valid).length;
+  int get warningCount =>
+      activeItems.where((d) => d.status == ItemStatus.warning).length;
+  int get expiredCount =>
+      activeItems.where((d) => d.status == ItemStatus.expired).length;
 
-  List<Item> get activeItems => _items.where((d) => d.usageStatus == UsageStatus.active).toList();
+  List<Item> get activeItems =>
+      _items.where((d) => d.usageStatus == UsageStatus.active).toList();
 
   List<Item> get filteredItems {
     var list = _showArchived ? _items : activeItems;
+    final noDeadlineDate = DateTime(9999, 12, 31);
 
     // Apply search filter
     if (_searchQuery.isNotEmpty) {
       final q = _searchQuery.toLowerCase();
-      list = list.where((d) =>
-        d.name.toLowerCase().contains(q) ||
-        (d.subtitle?.toLowerCase().contains(q) ?? false) ||
-        (d.manufacturer?.toLowerCase().contains(q) ?? false)
-      ).toList();
+      list = list
+          .where((d) =>
+              d.name.toLowerCase().contains(q) ||
+              (d.subtitle?.toLowerCase().contains(q) ?? false) ||
+              (d.manufacturer?.toLowerCase().contains(q) ?? false))
+          .toList();
     }
 
     // Apply sorting
     switch (_sortBy) {
       case ItemSortBy.expiryDate:
         list.sort((a, b) => _sortAsc
-            ? a.expiryDate.compareTo(b.expiryDate)
-            : b.expiryDate.compareTo(a.expiryDate));
+            ? (a.deadlineDate ?? noDeadlineDate)
+                .compareTo(b.deadlineDate ?? noDeadlineDate)
+            : (b.deadlineDate ?? noDeadlineDate)
+                .compareTo(a.deadlineDate ?? noDeadlineDate));
         break;
       case ItemSortBy.name:
-        list.sort((a, b) => _sortAsc
-            ? a.name.compareTo(b.name)
-            : b.name.compareTo(a.name));
+        list.sort((a, b) =>
+            _sortAsc ? a.name.compareTo(b.name) : b.name.compareTo(a.name));
         break;
       case ItemSortBy.createdAt:
         list.sort((a, b) => _sortAsc

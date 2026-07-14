@@ -1,7 +1,6 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import '../constants.dart';
 import '../services/barcode_service.dart';
 import '../l10n/app_localizations.dart';
 
@@ -20,7 +19,7 @@ class ScanScreen extends StatefulWidget {
 }
 
 class _ScanScreenState extends State<ScanScreen> {
-  MobileScannerController _controller = MobileScannerController(
+  final MobileScannerController _controller = MobileScannerController(
     detectionSpeed: DetectionSpeed.noDuplicates,
   );
   bool _scanned = false;
@@ -71,11 +70,11 @@ class _ScanScreenState extends State<ScanScreen> {
       builder: (ctx) => AlertDialog(
         title: Text(ctx.tr('scan_not_found_title')),
         content: Text(ctx.tr('scan_not_found_body', {'barcode': barcode}),
-            style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+            style: TextStyle(fontSize: 13, color: Theme.of(ctx).colorScheme.onSurfaceVariant)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text(ctx.tr('skip'), style: const TextStyle(color: AppColors.textSecondary)),
+            child: Text(ctx.tr('skip'), style: TextStyle(color: Theme.of(ctx).colorScheme.onSurfaceVariant)),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),

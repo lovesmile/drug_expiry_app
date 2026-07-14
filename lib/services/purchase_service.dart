@@ -1,79 +1,127 @@
 import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 
+enum PurchaseResult { started, unavailable, productNotFound, failed }
+
 class PurchaseService {
-  static const String _premiumId = 'premium_unlock';
-  static const Set<String> _productIds = {_premiumId};
+  static const String premiumProductId = 'premium_unlock';
+  static const Set<String> _productIds = {premiumProductId};
+
+  static final PurchaseService instance = PurchaseService._internal();
+
+  factory PurchaseService() => instance;
+
+  PurchaseService._internal();
 
   final InAppPurchase _iap = InAppPurchase.instance;
+  final List<VoidCallback> _premiumUnlockedListeners = [];
   StreamSubscription<List<PurchaseDetails>>? _subscription;
+  Future<void>? _initialization;
 
   bool _isAvailable = false;
   bool get isAvailable => _isAvailable;
 
-  /// Initialize the purchase service.
-  /// [onPremiumUnlocked] is called when a premium purchase is detected.
-  Future<void> init({required void Function() onPremiumUnlocked}) async {
-    _isAvailable = await _iap.isAvailable();
-
-    if (!_isAvailable) return;
-
-    _subscription = _iap.purchaseStream.listen((purchases) {
-      for (final purchase in purchases) {
-        _handlePurchase(purchase, onPremiumUnlocked);
-      }
-    });
-  }
-
-  void _handlePurchase(PurchaseDetails purchase, void Function() onPremiumUnlocked) {
-    if (purchase.productID != _premiumId) return;
-
-    if (purchase.status == PurchaseStatus.purchased ||
-        purchase.status == PurchaseStatus.restored) {
-      onPremiumUnlocked();
-      if (purchase.pendingCompletePurchase) {
-        _iap.completePurchase(purchase);
-      }
+  Future<void> init({VoidCallback? onPremiumUnlocked}) {
+    if (onPremiumUnlocked != null &&
+        !_premiumUnlockedListeners.contains(onPremiumUnlocked)) {
+      _premiumUnlockedListeners.add(onPremiumUnlocked);
     }
+
+    return _initialization ??= _initialize();
   }
 
-  /// Query product details for the premium product.
-  Future<ProductDetails?> getPremiumProduct() async {
-    if (!_isAvailable) return null;
-    final response = await _iap.queryProductDetails(_productIds);
-    if (response.notFoundIDs.isNotEmpty) {
-      // ignore: avoid_print
-      print('Products not found: ${response.notFoundIDs}');
-    }
-    return response.productDetails.isNotEmpty
-        ? response.productDetails.first
-        : null;
-  }
-
-  /// Start the purchase flow for the premium product.
-  Future<bool> purchase() async {
-    if (!_isAvailable) return false;
-    final product = await getPremiumProduct();
-    if (product == null) return false;
-
-    final param = PurchaseParam(productDetails: product);
+  Future<void> _initialize() async {
     try {
-      await _iap.buyNonConsumable(purchaseParam: param);
-      return true;
-    } catch (e) {
-      // ignore: avoid_print
-      print('Purchase error: $e');
-      return false;
+      _isAvailable = await _iap.isAvailable();
+      if (!_isAvailable) return;
+
+      _subscription = _iap.purchaseStream.listen(
+        _handlePurchases,
+        onError: (Object error, StackTrace stackTrace) {
+          debugPrint('Purchase stream error: $error');
+        },
+      );
+    } catch (error) {
+      _isAvailable = false;
+      debugPrint('Purchase initialization error: $error');
     }
   }
 
-  /// Restore previously purchased products.
-  Future<void> restore() async {
-    if (!_isAvailable) return;
-    await _iap.restorePurchases();
+  Future<void> _handlePurchases(List<PurchaseDetails> purchases) async {
+    for (final purchase in purchases) {
+      await _handlePurchase(purchase);
+    }
+  }
+
+  Future<void> _handlePurchase(PurchaseDetails purchase) async {
+    if (purchase.productID == premiumProductId &&
+        (purchase.status == PurchaseStatus.purchased ||
+            purchase.status == PurchaseStatus.restored)) {
+      for (final listener in List<VoidCallback>.of(_premiumUnlockedListeners)) {
+        listener();
+      }
+    }
+
+    if (purchase.pendingCompletePurchase) {
+      await _iap.completePurchase(purchase);
+    }
+  }
+
+  Future<ProductDetails?> getPremiumProduct() async {
+    await init();
+    if (!_isAvailable) return null;
+
+    try {
+      final response = await _iap.queryProductDetails(_productIds);
+      if (response.notFoundIDs.isNotEmpty) {
+        debugPrint('Products not found: ${response.notFoundIDs}');
+      }
+      return response.productDetails.isNotEmpty
+          ? response.productDetails.first
+          : null;
+    } catch (error) {
+      debugPrint('Product query error: $error');
+      return null;
+    }
+  }
+
+  Future<PurchaseResult> purchase() async {
+    await init();
+    if (!_isAvailable) return PurchaseResult.unavailable;
+
+    final product = await getPremiumProduct();
+    if (product == null) return PurchaseResult.productNotFound;
+
+    try {
+      await _iap.buyNonConsumable(
+        purchaseParam: PurchaseParam(productDetails: product),
+      );
+      return PurchaseResult.started;
+    } catch (error) {
+      debugPrint('Purchase error: $error');
+      return PurchaseResult.failed;
+    }
+  }
+
+  Future<PurchaseResult> restore() async {
+    await init();
+    if (!_isAvailable) return PurchaseResult.unavailable;
+
+    try {
+      await _iap.restorePurchases();
+      return PurchaseResult.started;
+    } catch (error) {
+      debugPrint('Restore purchase error: $error');
+      return PurchaseResult.failed;
+    }
   }
 
   void dispose() {
     _subscription?.cancel();
+    _subscription = null;
+    _initialization = null;
+    _premiumUnlockedListeners.clear();
   }
 }

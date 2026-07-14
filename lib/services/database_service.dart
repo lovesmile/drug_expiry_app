@@ -23,7 +23,7 @@ class DatabaseService {
     final path = join(dbPath, AppStrings.dbName);
     return openDatabase(
       path,
-      version: 4,
+      version: 6,
       onCreate: _createTables,
       onUpgrade: _onUpgrade,
     );
@@ -39,10 +39,13 @@ class DatabaseService {
         batch_number TEXT,
         manufacturer TEXT,
         expiry_date TEXT NOT NULL,
+        deadline_type TEXT NOT NULL DEFAULT 'expiry',
         photo_path TEXT,
         icon_code_point INTEGER NOT NULL DEFAULT 0,
         usage_status TEXT NOT NULL DEFAULT 'active',
         category TEXT NOT NULL DEFAULT 'drug',
+        purchase_date TEXT,
+        warranty_months INTEGER,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       )
@@ -94,15 +97,29 @@ class DatabaseService {
     ''');
   }
 
-  static Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+  static Future<void> _onUpgrade(
+      Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
-      await db.execute('ALTER TABLE ${AppStrings.drugsTable} ADD COLUMN icon_code_point INTEGER NOT NULL DEFAULT 0');
+      await db.execute(
+          'ALTER TABLE ${AppStrings.drugsTable} ADD COLUMN icon_code_point INTEGER NOT NULL DEFAULT 0');
     }
     if (oldVersion < 3) {
-      await db.execute('ALTER TABLE ${AppStrings.drugsTable} ADD COLUMN usage_status TEXT NOT NULL DEFAULT \'active\'');
+      await db.execute(
+          "ALTER TABLE ${AppStrings.drugsTable} ADD COLUMN usage_status TEXT NOT NULL DEFAULT 'active'");
     }
     if (oldVersion < 4) {
-      await db.execute('ALTER TABLE ${AppStrings.drugsTable} ADD COLUMN category TEXT NOT NULL DEFAULT \'drug\'');
+      await db.execute(
+          "ALTER TABLE ${AppStrings.drugsTable} ADD COLUMN category TEXT NOT NULL DEFAULT 'drug'");
+    }
+    if (oldVersion < 5) {
+      await db.execute(
+          'ALTER TABLE ${AppStrings.drugsTable} ADD COLUMN purchase_date TEXT');
+      await db.execute(
+          'ALTER TABLE ${AppStrings.drugsTable} ADD COLUMN warranty_months INTEGER');
+    }
+    if (oldVersion < 6) {
+      await db.execute(
+          "ALTER TABLE ${AppStrings.drugsTable} ADD COLUMN deadline_type TEXT NOT NULL DEFAULT 'expiry'");
     }
   }
 
@@ -115,7 +132,8 @@ class DatabaseService {
 
   Future<List<Item>> getAllItems() async {
     final db = await DatabaseService.database;
-    final maps = await db.query(AppStrings.drugsTable, orderBy: 'expiry_date ASC');
+    final maps =
+        await db.query(AppStrings.drugsTable, orderBy: 'expiry_date ASC');
     return maps.map((m) => Item.fromMap(m)).toList();
   }
 
@@ -137,7 +155,8 @@ class DatabaseService {
 
   Future<Item?> getItem(int id) async {
     final db = await DatabaseService.database;
-    final maps = await db.query(AppStrings.drugsTable, where: 'id = ?', whereArgs: [id]);
+    final maps =
+        await db.query(AppStrings.drugsTable, where: 'id = ?', whereArgs: [id]);
     if (maps.isEmpty) return null;
     return Item.fromMap(maps.first);
   }
@@ -157,7 +176,7 @@ class DatabaseService {
     return db.delete(AppStrings.drugsTable, where: 'id = ?', whereArgs: [id]);
   }
 
-  // Family Member CRUD
+  // Family CRUD
 
   Future<int> insertFamilyMember(FamilyMember member) async {
     final db = await DatabaseService.database;
@@ -166,7 +185,7 @@ class DatabaseService {
 
   Future<List<FamilyMember>> getAllFamilyMembers() async {
     final db = await DatabaseService.database;
-    final maps = await db.query(AppStrings.familyTable, orderBy: 'joined_at DESC');
+    final maps = await db.query(AppStrings.familyTable);
     return maps.map((m) => FamilyMember.fromMap(m)).toList();
   }
 
@@ -185,31 +204,35 @@ class DatabaseService {
     return db.delete(AppStrings.familyTable, where: 'id = ?', whereArgs: [id]);
   }
 
-  // Reminder Settings
+  // Reminder settings
 
-  Future<ReminderSettings?> getReminderSettings() async {
+  Future<ReminderSettings> getReminderSettings() async {
     final db = await DatabaseService.database;
-    final maps = await db.query(AppStrings.remindersTable, limit: 1);
-    if (maps.isEmpty) return null;
+    final maps = await db.query(AppStrings.remindersTable);
+    if (maps.isEmpty) {
+      final s = ReminderSettings();
+      await db.insert(AppStrings.remindersTable, s.toMap());
+      return s;
+    }
     return ReminderSettings.fromMap(maps.first);
   }
 
   Future<void> saveReminderSettings(ReminderSettings settings) async {
     final db = await DatabaseService.database;
-    final existing = await getReminderSettings();
-    if (existing != null) {
+    final existing = await db.query(AppStrings.remindersTable);
+    if (existing.isEmpty) {
+      await db.insert(AppStrings.remindersTable, settings.toMap());
+    } else {
       await db.update(
         AppStrings.remindersTable,
         settings.toMap(),
         where: 'id = ?',
-        whereArgs: [1],
+        whereArgs: [existing.first['id']],
       );
-    } else {
-      await db.insert(AppStrings.remindersTable, settings.toMap());
     }
   }
 
-  // Barcode Cache
+  // Barcode cache
 
   Future<void> cacheBarcode(String barcode, Map<String, String?> data) async {
     final db = await DatabaseService.database;
@@ -246,7 +269,8 @@ class DatabaseService {
 
   Future<int> getBarcodeCacheCount() async {
     final db = await DatabaseService.database;
-    final result = await db.rawQuery('SELECT COUNT(*) as count FROM ${AppStrings.barcodeCacheTable}');
+    final result = await db.rawQuery(
+        'SELECT COUNT(*) as count FROM ${AppStrings.barcodeCacheTable}');
     return (result.first['count'] as int?) ?? 0;
   }
 
@@ -264,7 +288,8 @@ class DatabaseService {
 
   Future<User?> getUser(int id) async {
     final db = await DatabaseService.database;
-    final maps = await db.query(AppStrings.usersTable, where: 'id = ?', whereArgs: [id]);
+    final maps =
+        await db.query(AppStrings.usersTable, where: 'id = ?', whereArgs: [id]);
     if (maps.isEmpty) return null;
     return User.fromMap(maps.first);
   }
@@ -301,7 +326,7 @@ class DatabaseService {
     final users = await db.query(AppStrings.usersTable);
 
     final export = {
-      'version': 4,
+      'version': 5,
       'exported_at': DateTime.now().toIso8601String(),
       'drugs': drugs,
       'family_members': members,
@@ -310,7 +335,8 @@ class DatabaseService {
     };
 
     final dir = await getApplicationDocumentsDirectory();
-    final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
+    final timestamp =
+        DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
     final file = File('${dir.path}/expiry_backup_$timestamp.json');
     await file.writeAsString(jsonEncode(export));
     return file.path;
@@ -318,7 +344,7 @@ class DatabaseService {
 
   Future<Map<String, int>> importAllData(String filePath) async {
     final file = File(filePath);
-    if (!await file.exists()) throw Exception('文件不存在');
+    if (!await file.exists()) throw Exception('File not found');
 
     final content = await file.readAsString();
     final data = jsonDecode(content) as Map<String, dynamic>;
@@ -340,7 +366,8 @@ class DatabaseService {
       }
 
       if (data['family_members'] is List) {
-        for (final m in (data['family_members'] as List).cast<Map<String, dynamic>>()) {
+        for (final m
+            in (data['family_members'] as List).cast<Map<String, dynamic>>()) {
           final copy = Map<String, dynamic>.from(m)..remove('id');
           try {
             await txn.insert(AppStrings.familyTable, copy);
@@ -349,12 +376,15 @@ class DatabaseService {
         }
       }
 
-      if (data['reminder_settings'] is List && (data['reminder_settings'] as List).isNotEmpty) {
-        final s = (data['reminder_settings'] as List).first as Map<String, dynamic>;
+      if (data['reminder_settings'] is List &&
+          (data['reminder_settings'] as List).isNotEmpty) {
+        final s =
+            (data['reminder_settings'] as List).first as Map<String, dynamic>;
         final copy = Map<String, dynamic>.from(s)..remove('id');
         final existing = await txn.query(AppStrings.remindersTable);
         if (existing.isNotEmpty) {
-          await txn.update(AppStrings.remindersTable, copy, where: 'id = ?', whereArgs: [existing.first['id']]);
+          await txn.update(AppStrings.remindersTable, copy,
+              where: 'id = ?', whereArgs: [existing.first['id']]);
         } else {
           await txn.insert(AppStrings.remindersTable, copy);
         }

@@ -1,5 +1,4 @@
-import 'package:flutter/material.dart';
-import '../constants.dart';
+﻿import 'package:flutter/material.dart';
 
 class EmptyState extends StatelessWidget {
   final IconData icon;
@@ -21,22 +20,22 @@ class EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: EdgeInsets.all(32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 72, color: AppColors.textDisabled.withValues(alpha: 0.5)),
+            Icon(icon, size: 72, color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
             const SizedBox(height: 16),
-            Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: AppColors.textSecondary)),
+            Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Theme.of(context).colorScheme.onSurfaceVariant)),
             if (subtitle != null) ...[
               const SizedBox(height: 8),
-              Text(subtitle!, style: const TextStyle(fontSize: 14, color: AppColors.textDisabled), textAlign: TextAlign.center),
+              Text(subtitle!, style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant), textAlign: TextAlign.center),
             ],
             if (actionLabel != null && onAction != null) ...[
               const SizedBox(height: 24),
               FilledButton.icon(
                 onPressed: onAction,
-                icon: const Icon(Icons.add),
+                icon: Icon(Icons.add),
                 label: Text(actionLabel!),
               ),
             ],

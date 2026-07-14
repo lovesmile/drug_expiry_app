@@ -1,8 +1,8 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/reminder_settings.dart';
 import '../services/database_service.dart';
-import '../constants.dart';
+import '../constants.dart' as const_alias;
 
 class SettingsProvider extends ChangeNotifier {
   final DatabaseService _db = DatabaseService();
@@ -11,7 +11,7 @@ class SettingsProvider extends ChangeNotifier {
   bool _isDarkMode = false;
   bool _darkModeFollowSystem = false;
   bool _appLockEnabled = false;
-  String _themeColor = AppTheme.green;
+  String _themeColor = const_alias.AppTheme.green;
 
   ReminderSettings? get settings => _settings;
   bool get isLoading => _isLoading;
@@ -20,8 +20,8 @@ class SettingsProvider extends ChangeNotifier {
   bool get appLockEnabled => _appLockEnabled;
   String get themeColor => _themeColor;
 
-  Color get seedColor => AppTheme.seeds[_themeColor] ?? AppTheme.seeds[AppTheme.green]!;
-  Color get lightTint => AppTheme.lightTints[_themeColor] ?? AppTheme.lightTints[AppTheme.green]!;
+  Color get seedColor => const_alias.AppTheme.seeds[_themeColor] ?? const_alias.AppTheme.seeds[const_alias.AppTheme.green]!;
+  Color get lightTint => const_alias.AppTheme.lightTints[_themeColor] ?? const_alias.AppTheme.lightTints[const_alias.AppTheme.green]!;
 
   ThemeMode get themeMode {
     if (_darkModeFollowSystem) return ThemeMode.system;
@@ -38,10 +38,10 @@ class SettingsProvider extends ChangeNotifier {
     }
 
     final prefs = await SharedPreferences.getInstance();
-    _isDarkMode = prefs.getBool(AppStrings.darkModeKey) ?? false;
-    _darkModeFollowSystem = prefs.getBool(AppStrings.darkModeFollowSystemKey) ?? false;
-    _appLockEnabled = prefs.getBool(AppStrings.appLockKey) ?? false;
-    _themeColor = prefs.getString(AppStrings.themeColorKey) ?? AppTheme.green;
+    _isDarkMode = prefs.getBool(const_alias.AppStrings.darkModeKey) ?? false;
+    _darkModeFollowSystem = prefs.getBool(const_alias.AppStrings.darkModeFollowSystemKey) ?? false;
+    _appLockEnabled = prefs.getBool(const_alias.AppStrings.appLockKey) ?? false;
+    _themeColor = prefs.getString(const_alias.AppStrings.themeColorKey) ?? const_alias.AppTheme.green;
 
     _isLoading = false;
     notifyListeners();
@@ -57,29 +57,29 @@ class SettingsProvider extends ChangeNotifier {
     _isDarkMode = value;
     if (value) _darkModeFollowSystem = false; // on → off system follow
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(AppStrings.darkModeKey, value);
-    await prefs.setBool(AppStrings.darkModeFollowSystemKey, _darkModeFollowSystem);
+    await prefs.setBool(const_alias.AppStrings.darkModeKey, value);
+    await prefs.setBool(const_alias.AppStrings.darkModeFollowSystemKey, _darkModeFollowSystem);
     notifyListeners();
   }
 
   Future<void> setDarkModeFollowSystem(bool value) async {
     _darkModeFollowSystem = value;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(AppStrings.darkModeFollowSystemKey, value);
+    await prefs.setBool(const_alias.AppStrings.darkModeFollowSystemKey, value);
     notifyListeners();
   }
 
   Future<void> setThemeColor(String value) async {
     _themeColor = value;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(AppStrings.themeColorKey, value);
+    await prefs.setString(const_alias.AppStrings.themeColorKey, value);
     notifyListeners();
   }
 
   Future<void> setAppLockEnabled(bool value) async {
     _appLockEnabled = value;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(AppStrings.appLockKey, value);
+    await prefs.setBool(const_alias.AppStrings.appLockKey, value);
     notifyListeners();
   }
 }

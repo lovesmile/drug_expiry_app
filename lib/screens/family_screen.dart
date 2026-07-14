@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'dart:async';
-import '../constants.dart';
+import '../design/app_colors.dart';
 import '../services/nearby_service.dart';
 import '../l10n/app_localizations.dart';
 
@@ -39,6 +39,11 @@ class _FamilyScreenState extends State<FamilyScreen> {
 
   @override
   void dispose() {
+    // 先清空回调，避免 stopAll() 内部触发的回调对 defunct element 调 setState
+    // 报错：'_lifecycleState != _ElementLifecycle.defunct': is not true
+    _nearby.onDeviceListChanged = null;
+    _nearby.onStateChanged = null;
+    _nearby.onDataReceived = null;
     _nearby.stopAll();
     _scanTimer?.cancel();
     super.dispose();
@@ -72,7 +77,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
       _statusDetail = context.tr('loading');
     });
 
-    const deviceName = '到期管家';
+    const deviceName = '鍒版湡绠″';
     await _nearby.startAdvertising(deviceName);
     await _nearby.startDiscovery(deviceName);
     setState(() {
@@ -102,7 +107,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
       _statusDetail = context.tr('loading');
     });
 
-    await _nearby.requestConnection(device.endpointId, '到期管家');
+    await _nearby.requestConnection(device.endpointId, '鍒版湡绠″');
 
     setState(() {
       _statusText = context.tr('sending', {'device': deviceName});
@@ -118,7 +123,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
     if (data['type'] != 'full_sync' && data['type'] != 'sync_back') return;
 
     final isFirstContact = data['type'] == 'full_sync';
-    final fromDevice = data['device_name'] as String? ?? '对方';
+    final fromDevice = data['device_name'] as String? ?? '瀵规柟';
 
     setState(() {
       _statusText = isFirstContact
@@ -159,7 +164,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
           children: [
             Icon(Icons.wifi_tethering, size: 20, color: Theme.of(context).colorScheme.primary),
             const SizedBox(width: 8),
-            Text(context.tr('connection_tips_title'), style: const TextStyle(fontSize: 18)),
+            Text(context.tr('connection_tips_title'), style: TextStyle(fontSize: 18)),
           ],
         ),
         content: Column(
@@ -185,7 +190,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bgMain,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
         title: Text(context.tr('share_title')),
         actions: [
@@ -219,21 +224,21 @@ class _FamilyScreenState extends State<FamilyScreen> {
     if (!_scanning && _statusText.isEmpty) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(32),
+          padding: EdgeInsets.all(32),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.wifi_tethering, size: 64, color: AppColors.textDisabled),
+              Icon(Icons.wifi_tethering, size: 64, color: Theme.of(context).colorScheme.onSurfaceVariant),
               const SizedBox(height: 16),
               Text(context.tr('share_empty_title'),
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onSurface)),
               const SizedBox(height: 8),
               Text(context.tr('share_empty_subtitle'),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                  style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant)),
               const SizedBox(height: 24),
               FilledButton.icon(
-                icon: const Icon(Icons.search),
+                icon: Icon(Icons.search),
                 label: Text(context.tr('discover_devices')),
                 onPressed: _toggleScan,
               ),
@@ -244,7 +249,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
     }
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(16),
       children: [
         if (_scanning) _buildNearbyDevices(),
         if (_statusText.isNotEmpty) const SizedBox(height: 8),
@@ -256,10 +261,10 @@ class _FamilyScreenState extends State<FamilyScreen> {
   Widget _buildNearbyDevices() {
     final devices = _nearby.discoveredDevices;
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: AppColors.bgSurface,
-        borderRadius: BorderRadius.circular(AppSizes.cardRadius),
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: AppRadius.large,
         border: Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3)),
       ),
       child: Column(
@@ -267,7 +272,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+            padding: EdgeInsets.fromLTRB(12, 10, 12, 4),
             child: Row(
               children: [
                 Icon(Icons.wifi_find, size: 16, color: Theme.of(context).colorScheme.primary),
@@ -279,7 +284,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
                 const Spacer(),
                 GestureDetector(
                   onTap: _showHotspotTips,
-                  child: const Icon(Icons.help_outline, size: 16, color: AppColors.textDisabled),
+                  child: Icon(Icons.help_outline, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
                 const SizedBox(width: 8),
                 SizedBox(
@@ -292,21 +297,21 @@ class _FamilyScreenState extends State<FamilyScreen> {
           ),
           if (devices.isEmpty)
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
-              child: Text(context.tr('discovery_no_device'), style: const TextStyle(fontSize: 12, color: AppColors.textDisabled)),
+              padding: EdgeInsets.fromLTRB(12, 4, 12, 10),
+              child: Text(context.tr('discovery_no_device'), style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
             )
           else
             ...devices.map((d) => ListTile(
                   dense: true,
-                  leading: const Icon(Icons.phone_android, size: 20, color: AppColors.textSecondary),
-                  title: Text(d.name, style: const TextStyle(fontSize: 14)),
+                  leading: Icon(Icons.phone_android, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  title: Text(d.name, style: TextStyle(fontSize: 14)),
                   trailing: _syncing
                       ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                       : FilledButton.icon(
-                          icon: const Icon(Icons.sync, size: 16),
-                          label: Text(context.tr('sync'), style: const TextStyle(fontSize: 12)),
+                          icon: Icon(Icons.sync, size: 16),
+                          label: Text(context.tr('sync'), style: TextStyle(fontSize: 12)),
                           style: FilledButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            padding: EdgeInsets.symmetric(horizontal: 12),
                             minimumSize: Size.zero,
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
@@ -322,10 +327,10 @@ class _FamilyScreenState extends State<FamilyScreen> {
   Widget _buildStatusCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: AppColors.brandSecondary,
-        borderRadius: BorderRadius.circular(AppSizes.inputRadius),
+        color: AppPalette.statusValidLight,
+        borderRadius: AppRadius.small,
       ),
       child: Row(
         children: [
@@ -340,7 +345,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
                 Text(_statusText,
                     style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Theme.of(context).colorScheme.primary)),
                 if (_statusDetail.isNotEmpty)
-                  Text(_statusDetail, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                  Text(_statusDetail, style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
               ],
             ),
           ),
@@ -363,7 +368,7 @@ class _TipItem extends StatelessWidget {
         Icon(icon, size: 18, color: Theme.of(context).colorScheme.primary),
         const SizedBox(width: 8),
         Expanded(
-          child: Text(text, style: const TextStyle(fontSize: 13, color: AppColors.textBody, height: 1.4)),
+          child: Text(text, style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface, height: 1.4)),
         ),
       ],
     );

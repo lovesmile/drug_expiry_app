@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
+import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:provider/provider.dart';
-import '../constants.dart';
 import '../providers/user_provider.dart';
 import '../services/purchase_service.dart';
 import '../l10n/app_localizations.dart';
@@ -13,8 +14,29 @@ class PremiumScreen extends StatefulWidget {
 }
 
 class _PremiumScreenState extends State<PremiumScreen> {
+  final PurchaseService _purchaseService = PurchaseService();
   bool _purchasing = false;
   bool _restoring = false;
+  ProductDetails? _product;
+  Timer? _operationTimeout;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProduct();
+  }
+
+  @override
+  void dispose() {
+    _operationTimeout?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _loadProduct() async {
+    await _purchaseService.init();
+    final product = await _purchaseService.getPremiumProduct();
+    if (mounted) setState(() => _product = product);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,16 +57,18 @@ class _PremiumScreenState extends State<PremiumScreen> {
 
     if (isPremium) {
       return Scaffold(
-        backgroundColor: AppColors.bgMain,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         appBar: AppBar(title: Text(context.tr('premium_title'))),
         body: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.verified, size: 80, color: AppColors.brandPrimary),
+              Icon(Icons.verified,
+                  size: 80, color: Theme.of(context).colorScheme.primary),
               const SizedBox(height: 16),
               Text(context.tr('premium_already_owned'),
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               TextButton(
                 onPressed: () => Navigator.pop(context),
@@ -57,7 +81,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
     }
 
     return Scaffold(
-      backgroundColor: AppColors.bgMain,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(title: Text(context.tr('premium_title'))),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -76,16 +100,24 @@ class _PremiumScreenState extends State<PremiumScreen> {
             ),
             child: Column(
               children: [
-                const Icon(Icons.workspace_premium, size: 56, color: Colors.white),
+                const Icon(Icons.workspace_premium,
+                    size: 56, color: Colors.white),
                 const SizedBox(height: 12),
                 Text(context.tr('premium_title'),
-                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
+                    style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white)),
                 const SizedBox(height: 4),
                 Text(context.tr('premium_subtitle'),
-                    style: const TextStyle(fontSize: 14, color: Colors.white70)),
+                    style:
+                        const TextStyle(fontSize: 14, color: Colors.white70)),
                 const SizedBox(height: 16),
-                Text(context.tr('premium_price'),
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+                Text(_product?.price ?? context.tr('premium_price'),
+                    style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white)),
               ],
             ),
           ),
@@ -96,31 +128,54 @@ class _PremiumScreenState extends State<PremiumScreen> {
             child: Row(
               children: [
                 const Expanded(flex: 3, child: SizedBox()),
-                const Expanded(flex: 1, child: Center(child: Text('Free', style: TextStyle(fontSize: 12, color: AppColors.textDisabled, fontWeight: FontWeight.w600)))),
-                const Expanded(flex: 1, child: Center(child: Text('Pro', style: TextStyle(fontSize: 12, color: AppColors.brandPrimary, fontWeight: FontWeight.w600)))),
+                Expanded(
+                    flex: 1,
+                    child: Center(
+                        child: Text('Free',
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: Theme.of(context).colorScheme.outline,
+                                fontWeight: FontWeight.w600)))),
+                Expanded(
+                    flex: 1,
+                    child: Center(
+                        child: Text('Pro',
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: Theme.of(context).colorScheme.primary,
+                                fontWeight: FontWeight.w600)))),
               ],
             ),
           ),
           const Divider(height: 1),
           _featureRow(context.tr('premium_unlimited_items'), '20', '∞', true),
           _featureRow(context.tr('premium_unlimited_family'), '1', '∞', true),
-          _featureRow(context.tr('premium_advanced_reminders'), '❌', '✅', false),
+          _featureRow(
+              context.tr('premium_advanced_reminders'), '❌', '✅', false),
           _featureRow(context.tr('premium_backup_export'), '❌', '✅', false),
           _featureRow(context.tr('premium_no_ads'), '❌', '✅', false),
           const SizedBox(height: 32),
           // Purchase button
           FilledButton.icon(
-            onPressed: _purchasing ? null : _purchase,
+            onPressed: _purchasing || _restoring ? null : _purchase,
             icon: _purchasing
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white))
                 : const Icon(Icons.lock_open),
-            label: Text(_purchasing ? context.tr('premium_purchasing') : context.tr('premium_btn_upgrade')),
+            label: Text(_purchasing
+                ? context.tr('premium_purchasing')
+                : context.tr('premium_btn_upgrade')),
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              backgroundColor: AppColors.brandPrimary,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              backgroundColor: Theme.of(context).colorScheme.primary,
               foregroundColor: Colors.white,
-              textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              textStyle:
+                  const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
           ),
           const SizedBox(height: 12),
@@ -128,20 +183,27 @@ class _PremiumScreenState extends State<PremiumScreen> {
           OutlinedButton.icon(
             onPressed: _restoring ? null : _restore,
             icon: _restoring
-                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2))
                 : const Icon(Icons.restore),
-            label: Text(_restoring ? context.tr('premium_restoring') : context.tr('premium_btn_restore')),
+            label: Text(_restoring
+                ? context.tr('premium_restoring')
+                : context.tr('premium_btn_restore')),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              foregroundColor: AppColors.textSecondary,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: 24),
           Text(
-            context.tr('premium_price'),
+            _product?.price ?? context.tr('premium_price'),
             textAlign: TextAlign.center,
-            style: const TextStyle(color: AppColors.textDisabled, fontSize: 13),
+            style: TextStyle(
+                color: Theme.of(context).colorScheme.outline, fontSize: 13),
           ),
         ],
       ),
@@ -150,19 +212,59 @@ class _PremiumScreenState extends State<PremiumScreen> {
 
   Future<void> _purchase() async {
     setState(() => _purchasing = true);
-    // Reset purchasing state after 30s if purchase doesn't complete
-    Future.delayed(const Duration(seconds: 30), () {
-      if (mounted) setState(() => _purchasing = false);
-    });
-    final service = PurchaseService();
-    await service.purchase();
+    _startOperationTimeout();
+
+    final result = await _purchaseService.purchase();
+    if (!mounted || result == PurchaseResult.started) return;
+
+    _stopOperation();
+    _showResultMessage(result);
   }
 
   Future<void> _restore() async {
     setState(() => _restoring = true);
-    final service = PurchaseService();
-    await service.restore();
-    if (mounted) setState(() => _restoring = false);
+    _startOperationTimeout();
+
+    final result = await _purchaseService.restore();
+    if (!mounted || result == PurchaseResult.started) return;
+
+    _stopOperation();
+    _showResultMessage(result);
+  }
+
+  void _startOperationTimeout() {
+    _operationTimeout?.cancel();
+    _operationTimeout = Timer(const Duration(seconds: 45), () {
+      if (!mounted) return;
+      _stopOperation();
+      _showResultMessage(PurchaseResult.failed);
+    });
+  }
+
+  void _stopOperation() {
+    _operationTimeout?.cancel();
+    _operationTimeout = null;
+    if (mounted) {
+      setState(() {
+        _purchasing = false;
+        _restoring = false;
+      });
+    }
+  }
+
+  void _showResultMessage(PurchaseResult result) {
+    final key = switch (result) {
+      PurchaseResult.unavailable => 'premium_unavailable',
+      PurchaseResult.productNotFound => 'premium_product_not_found',
+      PurchaseResult.failed => 'premium_error',
+      PurchaseResult.started => 'premium_success',
+    };
+    final message = result == PurchaseResult.failed
+        ? context.tr(key, {'error': context.tr('premium_try_again')})
+        : context.tr(key);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   Widget _featureRow(String label, String free, String pro, bool isCount) {
@@ -170,12 +272,21 @@ class _PremiumScreenState extends State<PremiumScreen> {
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
         children: [
-          Expanded(flex: 3, child: Text(label, style: const TextStyle(fontSize: 14, color: AppColors.textPrimary))),
+          Expanded(
+              flex: 3,
+              child: Text(label,
+                  style: TextStyle(
+                      fontSize: 14,
+                      color: Theme.of(context).colorScheme.onSurface))),
           Expanded(
             flex: 1,
             child: Center(
               child: isCount
-                  ? Text(free, style: const TextStyle(fontSize: 16, color: AppColors.textDisabled, fontWeight: FontWeight.w500))
+                  ? Text(free,
+                      style: TextStyle(
+                          fontSize: 16,
+                          color: Theme.of(context).colorScheme.outline,
+                          fontWeight: FontWeight.w500))
                   : Text(free, style: const TextStyle(fontSize: 16)),
             ),
           ),
@@ -183,7 +294,11 @@ class _PremiumScreenState extends State<PremiumScreen> {
             flex: 1,
             child: Center(
               child: isCount
-                  ? Text(pro, style: const TextStyle(fontSize: 16, color: AppColors.brandPrimary, fontWeight: FontWeight.bold))
+                  ? Text(pro,
+                      style: TextStyle(
+                          fontSize: 16,
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.bold))
                   : Text(pro, style: const TextStyle(fontSize: 16)),
             ),
           ),

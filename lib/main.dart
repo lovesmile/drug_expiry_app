@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'constants.dart';
+import 'design/app_colors.dart';
 import 'services/notification_service.dart';
 import 'providers/item_provider.dart';
 import 'providers/family_provider.dart';
@@ -17,10 +17,6 @@ import 'screens/lock_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await NotificationService.init();
-  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    statusBarColor: Colors.transparent,
-    statusBarIconBrightness: Brightness.dark,
-  ));
   runApp(const ExpiryTrackerApp());
 }
 
@@ -40,71 +36,44 @@ class ExpiryTrackerApp extends StatelessWidget {
         builder: (context, settingsProvider, _) {
           return MaterialApp(
             debugShowCheckedModeBanner: false,
-            title: AppStrings.appName,
+            title: '到期管家',
             supportedLocales: const [Locale('zh'), Locale('en')],
             localizationsDelegates: const [
               AppLocalizationsDelegate(),
-              GlobalMaterialLocalizations.delegate,
+              ...GlobalMaterialLocalizations.delegates,
               GlobalWidgetsLocalizations.delegate,
             ],
             localeResolutionCallback: (locale, supported) {
               if (locale?.languageCode == 'zh') return const Locale('zh');
               return const Locale('en');
             },
-            theme: ThemeData(
-              useMaterial3: true,
+            theme: AppTheme.build(
               brightness: Brightness.light,
-              colorSchemeSeed: settingsProvider.seedColor,
-              scaffoldBackgroundColor: AppColors.bgMain,
-              appBarTheme: const AppBarTheme(
-                backgroundColor: AppColors.bgSurface,
-                elevation: 0,
-                centerTitle: true,
-                titleTextStyle: TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-                iconTheme: IconThemeData(color: AppColors.textPrimary),
-              ),
-              floatingActionButtonTheme: const FloatingActionButtonThemeData(
-                elevation: 4,
-              ),
-              filledButtonTheme: FilledButtonThemeData(
-                style: FilledButton.styleFrom(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppSizes.buttonRadius),
-                  ),
-                ),
-              ),
-              cardTheme: CardThemeData(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppSizes.cardRadius),
-                ),
+              seed: settingsProvider.seedColor,
+              pageTransitionsTheme: const PageTransitionsTheme(
+                builders: <TargetPlatform, PageTransitionsBuilder>{
+                  TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+                  TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+                },
               ),
             ),
-            darkTheme: ThemeData(
-              useMaterial3: true,
+            darkTheme: AppTheme.build(
               brightness: Brightness.dark,
-              colorSchemeSeed: settingsProvider.seedColor,
-              scaffoldBackgroundColor: AppColors.darkBgMain,
-              appBarTheme: const AppBarTheme(
-                elevation: 0,
-                centerTitle: true,
-                titleTextStyle: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              cardTheme: CardThemeData(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppSizes.cardRadius),
-                ),
+              seed: settingsProvider.seedColor,
+              pageTransitionsTheme: const PageTransitionsTheme(
+                builders: <TargetPlatform, PageTransitionsBuilder>{
+                  TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+                  TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+                },
               ),
             ),
             themeMode: settingsProvider.themeMode,
+            builder: (context, child) {
+              return AnnotatedRegion<SystemUiOverlayStyle>(
+                value: AppTheme.systemUiOverlayStyle(Theme.of(context).brightness),
+                child: child ?? const SizedBox.shrink(),
+              );
+            },
             home: const _PrivacyGate(),
           );
         },
@@ -148,34 +117,13 @@ class _PrivacyGateState extends State<_PrivacyGate> {
     if (mounted) setState(() => _agreed = true);
   }
 
-  void _onDisagree() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: Text(context.tr('privacy_title')),
-        content: Text(context.tr('privacy_disagree_body')),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(context.tr('cancel')),
-          ),
-          TextButton(
-            onPressed: () => SystemNavigator.pop(),
-            child: Text(context.tr('exit_app'), style: TextStyle(color: AppColors.statusError)),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     if (_loading) return const _SplashScreen();
     if (_agreed) return _buildApp();
 
     return Scaffold(
-      backgroundColor: AppColors.bgMain,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: SafeArea(
         child: Column(
           children: [
@@ -188,15 +136,22 @@ class _PrivacyGateState extends State<_PrivacyGate> {
                     width: 72,
                     height: 72,
                     decoration: BoxDecoration(
-                      color: AppColors.brandSecondary,
+                      color: Theme.of(context).colorScheme.primaryContainer,
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Icon(Icons.inventory_2, size: 36, color: Theme.of(context).colorScheme.primary),
                   ),
                   const SizedBox(height: 16),
-                  const Text(AppStrings.appName, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                  Text(
+                    '到期管家',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
                   const SizedBox(height: 4),
-                  Text('v1.0.0', style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                  Text('v1.0.0', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
                 ],
               ),
             ),
@@ -206,16 +161,14 @@ class _PrivacyGateState extends State<_PrivacyGate> {
                 margin: const EdgeInsets.symmetric(horizontal: 16),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.bgSurface,
-                  borderRadius: BorderRadius.circular(AppSizes.cardRadius),
+                  color: Theme.of(context).colorScheme.surface,
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
                 ),
                 child: SingleChildScrollView(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(context.tr('welcome'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 8),
-                      Text(context.tr('privacy_summary'), style: TextStyle(fontSize: 13, color: AppColors.textBody, height: 1.6)),
+                      Text(context.tr('welcome'), style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
                       const SizedBox(height: 12),
                       const Divider(),
                       const SizedBox(height: 8),
@@ -238,15 +191,7 @@ class _PrivacyGateState extends State<_PrivacyGate> {
                     child: FilledButton(
                       onPressed: _onAgree,
                       style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
-                      child: Text(context.tr('agree_continue'), style: const TextStyle(fontSize: 16)),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    width: double.infinity,
-                    child: TextButton(
-                      onPressed: _onDisagree,
-                      child: Text(context.tr('disagree'), style: TextStyle(color: AppColors.textSecondary)),
+                      child: Text(context.tr('agree_continue'), style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
                     ),
                   ),
                 ],
@@ -264,7 +209,7 @@ class _PrivacyGateState extends State<_PrivacyGate> {
       contentPadding: EdgeInsets.zero,
       leading: Icon(icon, size: 18, color: Theme.of(context).colorScheme.primary),
       title: Text(text, style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.primary)),
-      trailing: const Icon(Icons.chevron_right, size: 18, color: AppColors.textDisabled),
+      trailing: Icon(Icons.chevron_right, size: 18, color: Theme.of(context).colorScheme.outline),
       onTap: onTap,
     );
   }
@@ -279,7 +224,7 @@ class _PrivacyGateState extends State<_PrivacyGate> {
       builder: (ctx) => AlertDialog(
         title: Text(title),
         content: SingleChildScrollView(
-          child: Text(content, style: const TextStyle(fontSize: 13, color: AppColors.textBody, height: 1.6)),
+          child: Text(content, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: Text(context.tr('close'))),
@@ -299,7 +244,7 @@ class _SplashScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.brandPrimary,
+      backgroundColor: Theme.of(context).colorScheme.primary,
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -311,11 +256,11 @@ class _SplashScreen extends StatelessWidget {
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(24),
               ),
-              child: const Icon(Icons.inventory_2, size: 48, color: AppColors.brandPrimary),
+              child: Icon(Icons.inventory_2, size: 48, color: Theme.of(context).colorScheme.primary),
             ),
             const SizedBox(height: 20),
             const Text(
-              AppStrings.appName,
+              '到期管家',
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Colors.white),
             ),
             const SizedBox(height: 4),
