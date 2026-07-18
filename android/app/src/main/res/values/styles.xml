@@ -2,11 +2,10 @@
 <resources>
     <!-- Theme applied to the Android Window while the process is starting when the OS's Dark Mode setting is off -->
     <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
-        <!-- Show a splash screen on the activity. Automatically removed when
-             the Flutter engine draws its first frame -->
-        <item name="android:windowBackground">@drawable/launch_background</item>
+        <!-- Pre-Android 12 用品牌色兜底，避免白屏。Android 12+ 由 values-v31
+             的 Theme.SplashScreen API 接管，会显示 AppLogo 图标 + 品牌蓝背景 -->
+        <item name="android:windowBackground">@color/ic_launcher_background</item>
         <item name="android:forceDarkAllowed">false</item>
-        <item name="android:windowFullscreen">true</item>
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
         <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
     </style>
@@ -19,5 +18,13 @@
     <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
         <!-- 锁定为品牌色，避免 Flutter 第一帧渲染前的白屏闪烁 -->
         <item name="android:windowBackground">@color/ic_launcher_background</item>
+        <!-- 显示系统状态栏（时间/电量/信号），由 Flutter AnnotatedRegion
+             动态设置图标颜色；不强制全屏。 -->
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <!-- 浅色主题：强制深色状态栏图标。MIUI 会依据 window 背景猜图标
+             颜色（蓝底→白字），这里在主题层面显式声明，避免时钟/信号
+             变成看不清的白色。深色主题在 values-night 里设为 false。 -->
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
     </style>
 </resources>

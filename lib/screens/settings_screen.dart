@@ -1,19 +1,23 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/cupertino.dart';
 import '../design/app_colors.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:local_auth/local_auth.dart';
 import '../constants.dart' as const_alias;
 import '../providers/settings_provider.dart';
+import '../providers/item_provider.dart';
 import '../providers/user_provider.dart';
+import '../providers/family_provider.dart';
 import '../services/barcode_service.dart';
 import '../services/database_service.dart';
+import '../services/notification_service.dart';
 import '../widgets/loading_indicator.dart';
 import '../l10n/app_localizations.dart';
-import 'premium_screen.dart';
+import 'webview_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -66,11 +70,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _exportCache() async {
-    final path = await BarcodeService.exportCache();
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.tr('cache_exported', {'path': path})), duration: const Duration(seconds: 3)),
-      );
+    final title = context.tr('cache_export');
+    final json = await BarcodeService.buildCacheJson();
+    final path = await FilePicker.platform.saveFile(
+      dialogTitle: title,
+      fileName: 'barcode_cache.json',
+      bytes: utf8.encode(json),
+    );
+    if (path != null && mounted) {
+      _showInfoDialog(context.tr('cache_exported', {'path': path}));
     }
   }
 
@@ -79,21 +87,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.any,
         allowMultiple: false,
+        initialDirectory: await _defaultExportDir(),
       );
       if (result != null && result.files.single.path != null) {
-        final count = await BarcodeService.importCache(result.files.single.path!);
+        final counts = await BarcodeService.importCache(result.files.single.path!);
         if (mounted) {
           _loadCacheCount();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(context.tr('cache_import_success', {'count': count.toString()}))),
-          );
+          _showInfoDialog(context.tr('cache_import_success', {
+            'added': counts['added'].toString(),
+            'skipped': counts['skipped'].toString(),
+          }));
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.tr('cache_import_fail'))),
-        );
+        _showInfoDialog(context.tr('cache_import_fail'));
       }
     }
   }
@@ -124,18 +132,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _exportFullBackup() async {
     try {
+      final title = context.tr('backup');
       final db = DatabaseService();
-      final path = await db.exportAllData();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.tr('backup_success', {'path': path})), duration: const Duration(seconds: 4)),
-        );
+      final json = await db.buildBackupJson();
+      final ts =
+          DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
+      final path = await FilePicker.platform.saveFile(
+        dialogTitle: title,
+        fileName: 'expiry_backup_$ts.json',
+        bytes: utf8.encode(json),
+      );
+      if (path != null && mounted) {
+        _showInfoDialog(context.tr('backup_success', {'path': path}));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.tr('backup_fail', {'error': e.toString()}))),
-        );
+        _showInfoDialog(context.tr('backup_fail', {'error': e.toString()}));
       }
     }
   }
@@ -145,6 +157,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.any,
         allowMultiple: false,
+        initialDirectory: await _defaultExportDir(),
       );
       if (result != null && result.files.single.path != null) {
         if (!mounted) return;
@@ -162,288 +175,85 @@ class _SettingsScreenState extends State<SettingsScreen> {
         if (confirm == true) {
           final db = DatabaseService();
           final counts = await db.importAllData(result.files.single.path!);
+          // 导入成功后立刻重载各 provider，使主页/家庭页/设置等
+          // Consumer 重建，避免用户必须重启 app 才看到恢复后的数据。
+          if (!mounted) return;
+          await Future.wait([
+            context.read<ItemProvider>().loadItems(),
+            context.read<FamilyProvider>().loadMembers(),
+            context.read<UserProvider>().loadUser(),
+            context.read<SettingsProvider>().loadSettings(),
+          ]);
+          await NotificationService.rescheduleFromDb();
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(context.tr('restore_result', {'drugs': counts['drugs'].toString(), 'members': counts['members'].toString()}))),
-            );
+            _showInfoDialog(context.tr('restore_result', {
+              'added': counts['drugs'].toString(),
+              'drugDups': counts['drugDups'].toString(),
+            }));
           }
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.tr('restore_fail'))),
-        );
+        _showInfoDialog(context.tr('restore_fail'));
       }
     }
   }
 
-  Future<void> _sendFeedback() async {
-    final uri = Uri(
-      scheme: 'mailto',
-      path: 'lovesmile811@gmail.com',
-      queryParameters: {
-        'subject': '${context.tr('app_name')} Feedback',
-        'body': '请描述您的意见或建议：\n\n',
-      },
-    );
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.tr('feedback_mail_fail'))),
-        );
-      }
-    }
+  // 导入对话框默认进入导出所在的 Downloads 目录，避免用户到处翻找。
+  Future<String?> _defaultExportDir() async {
+    final dir = await getDownloadsDirectory() ?? await getApplicationDocumentsDirectory();
+    return dir.path;
   }
 
-  void _showPolicy(String type) {
-    final isZh = Localizations.localeOf(context).languageCode == 'zh';
-    final (title, content) = switch (type) {
-      'privacy' => (context.tr('privacy_policy'), isZh ? _privacyPolicy : _privacyPolicyEn),
-      'terms' => (context.tr('user_agreement'), isZh ? _userAgreement : _userAgreementEn),
-      'sdk' => (context.tr('sdk_list'), isZh ? _sdkList : _sdkListEn),
-      _ => ('', ''),
-    };
-
+  // 导出成功：弹窗显示 SAF 实际保存位置。
+  void _showInfoDialog(String message) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(title),
-        content: SingleChildScrollView(
-          child: Text(content, style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface, height: 1.6)),
-        ),
+        content: Text(message),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(context.tr('close'))),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(context.tr('confirm'))),
         ],
       ),
     );
   }
 
-  // 隐私政策
-  static const String _privacyPolicy = '''
-本应用尊重并保护您的隐私。请您仔细阅读以下隐私政策：
+  void _openSurvey() {
+    final title = context.tr('feedback');
+    Navigator.of(context).push(
+      CupertinoPageRoute(
+        builder: (_) => WebViewScreen(
+          url: 'https://forms.gle/1Ja3129VLPjqFtjW9',
+          title: title,
+        ),
+      ),
+    );
+  }
 
-1. 信息收集
-本应用所有数据（物品信息、家庭成员信息、条码缓存等）仅存储于您设备的本地 SQLite 数据库中，不会自动上传至任何服务器。
-
-2. 相机权限
-条码扫描功能需要相机权限，仅用于扫描物品条码。我们不会通过相机收集任何其他信息。
-
-3. 网络请求
-条码查询时，我们会向第三方 API 服务（阿里云市场、Open Food Facts）发送条码编号以获取物品信息。这些服务可能记录您的请求以提供 API 服务。您可在设置中关闭自动查询。
-
-4. 附近设备权限
-家庭同步功能使用 Nearby Connections API，通过 WiFi/蓝牙在局域网内发现附近设备并传输物品数据。此功能需要位置或附近设备权限，仅在您主动开启时使用。
-
-5. 文件存储
-导出缓存和导入照片时需要读写存储权限。导出的缓存文件仅包含物品条码信息，不包含个人身份信息。
-
-6. 信息分享
-当您使用分享功能时，系统会调用系统分享面板。您主动选择的分享目标（如微信、QQ 等）将收到您选择分享的物品信息。
-
-7. 第三方服务
-本应用使用了若干第三方 SDK（详见第三方SDK清单），这些 SDK 可能收集设备信息以提供服务。
-
-8. 联系我们
-如您对本隐私政策有任何疑问，请通过应用内「设置-意见反馈」联系我们。
-
-本隐私政策更新日期：2026年5月
-''';
-
-  // 用户协议
-  static const String _userAgreement = '''
-欢迎使用到期管家。请您仔细阅读以下协议：
-
-1. 服务说明
-本应用是一款本地优先的到期管家，提供物品信息录入、条码扫描、到期提醒等功能。所有数据默认存储于本地设备。
-
-2. 用户责任
-- 用户应自行备份重要数据
-- 物品有效期信息仅供参考，不构成医疗建议
-- 用户应对录入的物品信息准确性负责
-
-3. 免责声明
-- 本应用不提供用药指导，不承担因用药不当产生的任何责任
-- 到期提醒功能基于用户录入的日期计算，因录入错误导致的后果需用户自行承担
-- 数据丢失风险：建议定期导出备份
-
-4. 知识产权
-本应用及其所有内容的知识产权归开发者所有。
-
-5. 协议修改
-我们保留修改本协议的权利。修改后的协议将在应用内公布。
-
-6. 法律适用
-本协议适用中华人民共和国法律。
-''';
-
-  // 第三方SDK清单
-  static const String _sdkList = '''
-本应用使用的第三方SDK如下：
-
-1. sqflite / SQLite
-- 用途：本地数据存储
-- 收集信息：无（仅本地存储）
-- 官网：https://pub.dev/packages/sqflite
-
-2. mobile_scanner
-- 用途：条码扫描
-- 收集信息：相机权限（本地处理，无上传）
-- 官网：https://pub.dev/packages/mobile_scanner
-
-3. flutter_local_notifications
-- 用途：本地通知提醒
-- 收集信息：无（本地通知）
-- 官网：https://pub.dev/packages/flutter_local_notifications
-
-4. image_picker / file_picker
-- 用途：选择照片和文件
-- 收集信息：存储/媒体权限
-- 官网：https://pub.dev/packages/image_picker
-
-5. share_plus
-- 用途：系统分享
-- 收集信息：无
-- 官网：https://pub.dev/packages/share_plus
-
-6. http
-- 用途：API 网络请求（条码查询）
-- 收集信息：请求的条码编号、IP地址
-- 官网：https://pub.dev/packages/http
-
-7. nearby_connections (Google Nearby Connections)
-- 用途：局域网设备发现与数据传输
-- 收集信息：位置/附近设备权限、WiFi状态
-- 官网：https://developers.google.com/nearby
-
-8. path_provider / shared_preferences
-- 用途：文件路径和应用设置存储
-- 收集信息：无
-- 官网：https://pub.dev/packages/path_provider
-
-9. permission_handler
-- 用途：权限管理
-- 收集信息：设备权限状态
-- 官网：https://pub.dev/packages/permission_handler
-
-10. provider
-- 用途：状态管理
-- 收集信息：无
-- 官网：https://pub.dev/packages/provider
-''';
-
-  // ====== English legal texts ======
-  static const String _privacyPolicyEn = '''
-This application respects and protects your privacy.
-
-1. Information Collection
-All data (item info, family members, barcode cache) is stored locally in your device's SQLite database. No data is automatically uploaded to any server.
-
-2. Camera Permission
-Barcode scanning requires camera permission, used only for scanning product barcodes.
-
-3. Network Requests
-When looking up barcodes, we send the barcode number to third-party APIs (Alibaba Cloud Marketplace, Open Food Facts). You can disable auto-lookup in Settings.
-
-4. Nearby Devices Permission
-Family sync uses Nearby Connections API over WiFi/Bluetooth. Location or nearby devices permission is required only when you actively enable this feature.
-
-5. File Storage
-Exporting cache and importing photos requires storage read/write permission.
-
-6. Information Sharing
-When you use the share feature, the system share sheet is invoked. Your selected target (e.g. WeChat, QQ) will receive the item information you choose to share.
-
-7. Third-Party Services
-This app uses several third-party SDKs (see SDK List) which may collect device information to provide their services.
-
-8. Contact Us
-If you have any questions, contact us via Settings > Feedback.
-
-Last updated: May 2026
-''';
-
-  static const String _userAgreementEn = '''
-Welcome to Expiry Tracker. Please read the following terms carefully:
-
-1. Service Description
-This app is a local-first expiration tracker. All data is stored locally by default.
-
-2. User Responsibilities
-- Users should regularly back up important data
-- Expiration information is for reference only, not professional advice
-- Users are responsible for the accuracy of entered information
-
-3. Disclaimer
-- This app does not provide medical guidance
-- Expiration reminders are based on user-entered dates
-- Data loss risk: regular backups are recommended
-
-4. Intellectual Property
-All intellectual property rights belong to the developer.
-
-5. Agreement Changes
-We reserve the right to modify this agreement. Changes will be posted in the app.
-
-6. Governing Law
-This agreement is governed by the laws of the People's Republic of China.
-''';
-
-  static const String _sdkListEn = '''
-Third-Party SDKs used in this app:
-
-1. sqflite / SQLite
-- Purpose: Local data storage
-- Data collected: None (local only)
-- Website: https://pub.dev/packages/sqflite
-
-2. mobile_scanner
-- Purpose: Barcode scanning
-- Data collected: Camera permission (local processing only)
-- Website: https://pub.dev/packages/mobile_scanner
-
-3. flutter_local_notifications
-- Purpose: Local push notifications
-- Data collected: None
-- Website: https://pub.dev/packages/flutter_local_notifications
-
-4. image_picker / file_picker
-- Purpose: Pick photos and files
-- Data collected: Storage/media permission
-- Website: https://pub.dev/packages/image_picker
-
-5. share_plus
-- Purpose: System share
-- Data collected: None
-- Website: https://pub.dev/packages/share_plus
-
-6. http
-- Purpose: API network requests (barcode lookup)
-- Data collected: Barcode number, IP address
-- Website: https://pub.dev/packages/http
-
-7. nearby_connections (Google Nearby Connections)
-- Purpose: LAN device discovery and data transfer
-- Data collected: Location/nearby devices permission, WiFi status
-- Website: https://developers.google.com/nearby
-
-8. path_provider / shared_preferences
-- Purpose: File paths and app settings storage
-- Data collected: None
-- Website: https://pub.dev/packages/path_provider
-
-9. permission_handler
-- Purpose: Permission management
-- Data collected: Device permission status
-- Website: https://pub.dev/packages/permission_handler
-
-10. provider
-- Purpose: State management
-- Data collected: None
-- Website: https://pub.dev/packages/provider
-''';
+  void _showPolicy(String type) {
+    final entry = switch (type) {
+      'privacy' => (
+        'https://lovesmile.github.io/expiry-tracker-privacy/index.html',
+        context.tr('privacy_policy'),
+      ),
+      'terms' => (
+        'https://lovesmile.github.io/expiry-tracker-privacy/terms.html',
+        context.tr('user_agreement'),
+      ),
+      'sdk' => (
+        'https://lovesmile.github.io/expiry-tracker-privacy/sdk.html',
+        context.tr('sdk_list'),
+      ),
+      _ => ('', ''),
+    };
+    if (entry.$1.isEmpty) return;
+    Navigator.of(context).push(
+      CupertinoPageRoute(
+        builder: (_) => WebViewScreen(url: entry.$1, title: entry.$2),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -474,7 +284,7 @@ Third-Party SDKs used in this app:
                     ),
                   ),
                   title: Text(user?.nickname ?? context.tr('admin')),
-                  subtitle: Text(context.tr('drug_count', {'count': (user?.recordCount ?? 0).toString()})),
+                  subtitle: Text(context.tr('drug_count', {'count': context.read<ItemProvider>().totalCount.toString()})),
                   trailing: Icon(Icons.edit_outlined, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   onTap: _editNickname,
                 ),
@@ -514,8 +324,8 @@ Third-Party SDKs used in this app:
                     ],
                   ),
                 ),
-                // Dark mode switch
-                _buildSwitchTile(context.tr('dark_mode'), context.tr('dark_mode_sub'), settingsProvider.isDarkMode, (v) {
+                // Dark mode switch — 显示实际生效值，开启"跟随系统"时强制 off
+                _buildSwitchTile(context.tr('dark_mode'), context.tr('dark_mode_sub'), settingsProvider.effectiveDarkMode, (v) {
                   settingsProvider.setDarkMode(v);
                 }),
                 // Follow system
@@ -570,6 +380,13 @@ Third-Party SDKs used in this app:
                     settingsProvider.updateSettings(s.copyWith(timeExpired: v));
                   }),
               ]),
+              Padding(
+                padding: EdgeInsets.fromLTRB(8, 8, 8, 0),
+                child: Text(
+                  context.tr('reminder_hint'),
+                  style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                ),
+              ),
               const SizedBox(height: 24),
               _buildSection(context.tr('barcode_cache'), [
                 ListTile(
@@ -617,28 +434,13 @@ Third-Party SDKs used in this app:
                 ),
               ]),
               const SizedBox(height: 24),
-              _buildSection(context.tr('premium_title'), [
-                ListTile(
-                  leading: Icon(Icons.workspace_premium, color: Theme.of(context).colorScheme.primary),
-                  title: Text(context.tr('premium_title'), style: TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: Consumer<UserProvider>(
-                    builder: (context, up, _) => Text(
-                      up.user?.isPremium == true ? context.tr('premium_already_owned') : context.tr('premium_subtitle'),
-                      style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 13),
-                    ),
-                  ),
-                  trailing: Icon(Icons.chevron_right, color: Theme.of(context).colorScheme.outline),
-                  onTap: () => Navigator.push(context, CupertinoPageRoute(builder: (_) => const PremiumScreen())),
-                ),
-              ]),
-              const SizedBox(height: 24),
               _buildSection(context.tr('about'), [
                 ListTile(
                   leading: Icon(Icons.feedback_outlined, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 20),
                   title: Text(context.tr('feedback')),
-                  subtitle: Text(context.tr('feedback_sub')),
+                  subtitle: Text(context.tr('feedback_sub'), maxLines: 2, overflow: TextOverflow.ellipsis),
                   trailing: Icon(Icons.chevron_right, color: Theme.of(context).colorScheme.outline),
-                  onTap: _sendFeedback,
+                  onTap: _openSurvey,
                 ),
                 ListTile(
                   title: Text(context.tr('version')),

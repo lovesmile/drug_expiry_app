@@ -37,31 +37,4 @@ class UserProvider extends ChangeNotifier {
     _user = updated;
     notifyListeners();
   }
-
-  Future<void> incrementRecordCount() async {
-    if (_user == null) return;
-    final updated = _user!.copyWith(recordCount: _user!.recordCount + 1);
-    await _db.updateUser(updated);
-    _user = updated;
-    notifyListeners();
-  }
-
-  Future<void> decrementRecordCount() async {
-    if (_user == null || _user!.recordCount <= 0) return;
-    final updated = _user!.copyWith(recordCount: _user!.recordCount - 1);
-    await _db.updateUser(updated);
-    _user = updated;
-    notifyListeners();
-  }
-
-  Future<void> setPremium(bool value) async {
-    if (_user == null) return;
-    final updated = _user!.copyWith(
-      isPremium: value,
-      recordLimit: value ? 999999 : 10,
-    );
-    await _db.updateUser(updated);
-    _user = updated;
-    notifyListeners();
-  }
 }

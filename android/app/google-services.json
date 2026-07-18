@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "28766950135",
+    "project_id": "expiry-tracker-2f300",
+    "storage_bucket": "expiry-tracker-2f300.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:28766950135:android:1bb1b590158ba467e8b9f2",
+        "android_client_info": {
+          "package_name": "com.lovesmile.expiry"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC99uvq0qi7Su_TomFwLQ-nvA8n4ti5upM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -61,6 +61,10 @@ class AppTheme {
         ),
         iconTheme: IconThemeData(color: colorScheme.onSurface),
         actionsIconTheme: IconThemeData(color: colorScheme.onSurface),
+        // 显式声明状态栏图标亮度：AppBar 每次 build 都会把这个 overlay
+        // push 给系统，覆盖 MIUI 依据 window 背景（蓝色 splash）猜出的
+        // 白色图标。浅色主题 → 深色图标，深色主题 → 白色图标。
+        systemOverlayStyle: systemUiOverlayStyle(brightness),
       ),
 
       cardTheme: CardThemeData(

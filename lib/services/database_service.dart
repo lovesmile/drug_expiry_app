@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
-import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import '../constants.dart';
 import '../models/item.dart';
@@ -250,6 +249,25 @@ class DatabaseService {
     );
   }
 
+  /// 备份导入专用：若 barcode 已存在则跳过；返回新插入的行 id（>0），
+  /// 重复时返回 0。保留 cacheBarcode 的 REPLACE 语义给在线查询复用。
+  Future<int> insertCacheIfMissing(
+      String barcode, Map<String, String?> data) async {
+    final db = await DatabaseService.database;
+    return db.insert(
+      AppStrings.barcodeCacheTable,
+      {
+        'barcode': barcode,
+        'name': data['name'],
+        'generic_name': data['generic_name'],
+        'manufacturer': data['manufacturer'],
+        'specification': data['specification'],
+        'cached_at': DateTime.now().toIso8601String(),
+      },
+      conflictAlgorithm: ConflictAlgorithm.ignore,
+    );
+  }
+
   Future<Map<String, String?>?> getCachedBarcode(String barcode) async {
     final db = await DatabaseService.database;
     final maps = await db.query(
@@ -318,7 +336,7 @@ class DatabaseService {
 
   // Full backup/restore
 
-  Future<String> exportAllData() async {
+  Future<String> buildBackupJson() async {
     final db = await DatabaseService.database;
     final drugs = await db.query(AppStrings.drugsTable);
     final members = await db.query(AppStrings.familyTable);
@@ -334,12 +352,7 @@ class DatabaseService {
       'users': users,
     };
 
-    final dir = await getApplicationDocumentsDirectory();
-    final timestamp =
-        DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
-    final file = File('${dir.path}/expiry_backup_$timestamp.json');
-    await file.writeAsString(jsonEncode(export));
-    return file.path;
+    return jsonEncode(export);
   }
 
   Future<Map<String, int>> importAllData(String filePath) async {
@@ -350,17 +363,48 @@ class DatabaseService {
     final data = jsonDecode(content) as Map<String, dynamic>;
     final db = await DatabaseService.database;
 
-    int drugsImported = 0;
-    int membersImported = 0;
+    // Pre-load existing keys. 同一份备份内的多条记录也共用同一个 Set 增量去重，
+    // 避免重复备份（含本就重复的数据）再一次叠加。
+    final existingDrugRows = await db.query(
+      AppStrings.drugsTable,
+      columns: ['name', 'deadline_type', 'expiry_date'],
+    );
+    final existingDrugKeys = <String>{
+      for (final r in existingDrugRows)
+        _drugKey(
+          (r['name'] as String?) ?? '',
+          (r['deadline_type'] as String?) ?? 'expiry',
+          (r['expiry_date'] as String?) ?? '',
+        ),
+    };
+
+    final existingMemberNames = <String>{
+      for (final r in await db.query(AppStrings.familyTable, columns: ['name']))
+        (r['name'] as String?) ?? '',
+    };
+
+    int drugsAdded = 0;
+    int drugsSkipped = 0;
+    int membersAdded = 0;
+    int membersSkipped = 0;
 
     await db.transaction((txn) async {
       if (data['drugs'] is List) {
         for (final d in (data['drugs'] as List).cast<Map<String, dynamic>>()) {
-          // Remove id so it gets auto-incremented
           final copy = Map<String, dynamic>.from(d)..remove('id');
+          final key = _drugKey(
+            (copy['name'] ?? '') as String,
+            (copy['deadline_type'] ?? 'expiry') as String,
+            (copy['expiry_date'] ?? '') as String,
+          );
+          if (existingDrugKeys.contains(key)) {
+            drugsSkipped++;
+            continue;
+          }
           try {
             await txn.insert(AppStrings.drugsTable, copy);
-            drugsImported++;
+            drugsAdded++;
+            existingDrugKeys.add(key);
           } catch (_) {}
         }
       }
@@ -369,9 +413,15 @@ class DatabaseService {
         for (final m
             in (data['family_members'] as List).cast<Map<String, dynamic>>()) {
           final copy = Map<String, dynamic>.from(m)..remove('id');
+          final name = (copy['name'] ?? '') as String;
+          if (existingMemberNames.contains(name)) {
+            membersSkipped++;
+            continue;
+          }
           try {
             await txn.insert(AppStrings.familyTable, copy);
-            membersImported++;
+            membersAdded++;
+            existingMemberNames.add(name);
           } catch (_) {}
         }
       }
@@ -391,6 +441,17 @@ class DatabaseService {
       }
     });
 
-    return {'drugs': drugsImported, 'members': membersImported};
+    return {
+      'drugs': drugsAdded,
+      'drugDups': drugsSkipped,
+      'members': membersAdded,
+      'memberDups': membersSkipped,
+    };
   }
 }
+
+// 同一 (name, deadline_type, expiry_date) 视为同一条物品。
+// 重复导入时靠这个键避免叠加；同一 (name, warranty, endDate=2027-01) 与
+// (name, expiry, endDate=2027-01) 也按 deadline_type 区别开。
+String _drugKey(String name, String deadlineType, String expiryDate) =>
+    '$name|$deadlineType|$expiryDate';

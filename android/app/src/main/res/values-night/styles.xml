@@ -6,7 +6,6 @@
              the Flutter engine draws its first frame -->
         <item name="android:windowBackground">@drawable/launch_background</item>
         <item name="android:forceDarkAllowed">false</item>
-        <item name="android:windowFullscreen">true</item>
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
         <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
     </style>
@@ -19,5 +18,10 @@
     <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
         <!-- 锁定为品牌色，避免 Flutter 第一帧渲染前的白屏闪烁 -->
         <item name="android:windowBackground">@color/ic_launcher_background</item>
+        <!-- 显示系统状态栏，由 Flutter AnnotatedRegion 控制图标颜色 -->
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <!-- 深色主题：白色状态栏图标 -->
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
     </style>
 </resources>

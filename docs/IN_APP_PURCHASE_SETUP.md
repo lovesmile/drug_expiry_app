@@ -1,11 +1,17 @@
 # Pro 购买配置
 
+> 已废弃（2026-07-18）：商业化方案已切换为 Google Mobile Ads 横幅广告，in_app_purchase / premium_screen / purchase_service 已从代码中移除，本文档保留仅作历史参考。
+
+原文如下：
+
+# Pro 购买配置
+
 代码中的商品 ID 是：`premium_unlock`。
 
 ## Android / Google Play
 
 1. 在 Google Play Console 创建与应用包名 `com.lovesmile.expiry` 对应的应用。
-2. 在“获利设置 → 应用内商品”创建商品。
+2. 在"获利设置 → 应用内商品"创建商品。
 3. 商品 ID 必须使用 `premium_unlock`。
 4. 商品类型必须是一次性购买的非消耗型商品，并设置售价。
 5. 将应用发布到内部测试轨道，使用已加入测试名单的 Google 账号安装测试包。

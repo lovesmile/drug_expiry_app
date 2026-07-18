@@ -14,6 +14,35 @@ enum ItemCategory { drug, food, cosmetic, dailyNecessity, electronics, other }
 class Item {
   static final DateTime _legacyNoDeadlineDate = DateTime(9999, 12, 31);
 
+  // 用户在「添加/编辑物品」页可从 14 个固定图标里选，codePoint 落库后
+  // 在此用 const 列表反查 IconData。**禁止**直接 `IconData(codePoint, ...)`，
+  // 否则 AOT tree-shake-icons 阶段会因非 const 构造报错，并强迫加
+  // `--no-tree-shake-icons`，而该 flag 在 NDK 28 上又触发 strip 工具链失败。
+  // 见 add_edit_item_screen._allIcons —— 两处枚举保持同步。
+  static const List<IconData> _iconLookup = [
+    Icons.medication, // 0
+    Icons.restaurant, // 1
+    Icons.local_drink, // 2
+    Icons.face, // 3
+    Icons.science, // 4
+    Icons.devices, // 5
+    Icons.inventory_2, // 6
+    Icons.category, // 7
+    Icons.health_and_safety, // 8
+    Icons.local_pharmacy, // 9
+    Icons.opacity, // 10
+    Icons.spa, // 11
+    Icons.grain, // 12
+    Icons.water_drop, // 13
+  ];
+
+  IconData resolveIcon(int codePoint) {
+    for (final icon in _iconLookup) {
+      if (icon.codePoint == codePoint) return icon;
+    }
+    return Icons.inventory_2;
+  }
+
   final int? id;
   final String name;
   final String? subtitle;
@@ -54,9 +83,18 @@ class Item {
         createdAt = createdAt ?? DateTime.now(),
         updatedAt = updatedAt ?? DateTime.now();
 
-  IconData get icon => IconData(iconCodePoint, fontFamily: 'MaterialIcons');
+  // 改成查 const 映射，让 IconData() 始终在 const 上下文中构造。
+  // Flutter AOT 的 tree-shake-icons 阶段禁止运行时动态 IconData() 调用，
+  // 否则会保留完整 icons font 并阻断打包；之前用 `IconData(iconCodePoint, ...)`
+  // 直接 new 因此构建必须加 --no-tree-shake-icons，但该 flag 又会触发 NDK strip
+  // 工具链报错。改成 const Map 后可以走默认构建路径。
+  IconData get icon => resolveIcon(iconCodePoint);
 
   DateTime? get deadlineDate {
+    // 电子产品优先保修期：录入时若同时有有效期+保修，按保修追踪更直观。
+    if (category == ItemCategory.electronics && warrantyEndDate != null) {
+      return warrantyEndDate;
+    }
     switch (deadlineType) {
       case ItemDeadlineType.expiry:
         return expiryDate;
@@ -65,6 +103,15 @@ class Item {
       case ItemDeadlineType.none:
         return null;
     }
+  }
+
+  /// 实际生效的 deadline 类型，受电子产品保修优先规则影响。
+  /// UI 用它来选择图标 / 标签，避免与 deadlineDate 不一致。
+  ItemDeadlineType get effectiveDeadlineType {
+    if (category == ItemCategory.electronics && warrantyEndDate != null) {
+      return ItemDeadlineType.warranty;
+    }
+    return deadlineType;
   }
 
   bool get hasDeadline => deadlineDate != null;

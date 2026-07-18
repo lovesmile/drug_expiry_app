@@ -52,8 +52,8 @@ Services handle data access and external integrations:
 - `DatabaseService` — SQLite CRUD, backup/restore (single singleton)
 - `BarcodeService` — barcode lookup API calls + local cache in SQLite
 - `NearbyService` — Google Nearby Connections for LAN device discovery and data sync
-- `NotificationService` — flutter_local_notifications setup
-- `PurchaseService` — in-app purchase handling
+- `NotificationService` — `flutter_local_notifications` + `zonedSchedule` real scheduling (4 buckets: 30d/7d/3d/expired), `rescheduleFromDb()` called on item/settings changes and cold start
+- `AdService` — Google Mobile Ads banner (bottom of item list)
 
 ### Startup Flow
 
@@ -63,6 +63,7 @@ main() → ExpiryTrackerApp() → MultiProvider → _PrivacyGate → _LockGate �
 
 - `_PrivacyGate` — shows privacy agreement on first launch
 - `_LockGate` — checks `SettingsProvider.appLockEnabled` and requires biometric auth if enabled
+- `ItemListScreen` `initState` — calls `NotificationService.rescheduleFromDb()`; if warning/expired items exist, shows a one-time SnackBar fallback (`_hasShownFallbackReminder` flag prevents repeat within session)
 
 ### Localization
 
@@ -72,9 +73,9 @@ Custom `AppLocalizations` with delegate. Two locales: `zh` and `en`. Resolution 
 
 `design/app_theme.dart` contains `AppTheme.build()` — single factory for all `ThemeData` fields. Uses `ColorScheme.fromSeed()` with user-selectable seed colors (green/blue/cyan). Material 3 enabled. Both light and dark themes built and switched via `themeMode`.
 
-### Database Schema (version 5)
+### Database Schema (version 6)
 
-Tables: `drugs`, `family_members`, `reminders`, `users`, `barcode_cache`. Migrations handled via `onUpgrade` callback with version checks.
+Tables: `drugs`, `family_members`, `reminders`, `users`, `barcode_cache`. Migrations handled via `onUpgrade` callback with version checks. Version 5 added electronics warranty fields; version 6 added `deadline_type` (expiry / warranty / none).
 
 ## Key Patterns
 

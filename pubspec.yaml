@@ -1,7 +1,7 @@
 name: expiry_tracker
 description: A multi-category expiration tracker for household items.
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.0+4
 
 environment:
   sdk: '>=3.2.0 <4.0.0'
@@ -21,6 +21,8 @@ dependencies:
   intl: ^0.20.2
   shared_preferences: ^2.5.3
   flutter_local_notifications: ^18.0.1
+  timezone: ^0.10.0
+  flutter_timezone: ^4.1.0
   permission_handler: ^11.3.1
   share_plus: ^10.1.4
   file_picker: ^8.1.7
@@ -28,7 +30,10 @@ dependencies:
   nearby_connections: ^4.3.0
   url_launcher: ^6.3.1
   local_auth: ^2.3.0
-  in_app_purchase: ^3.2.0
+  google_mobile_ads: ^5.3.0
+  webview_flutter: ^4.10.0
+  firebase_core: ^3.6.0
+  firebase_analytics: ^11.3.0
 
 dev_dependencies:
   flutter_test:
@@ -43,13 +48,14 @@ flutter_launcher_icons:
   ios: true
   image_path: "assets/icon/app_icon.png"
   adaptive_icon_foreground: "assets/icon/app_icon_foreground.png"
-  adaptive_icon_background: "#2196F3"
+  adaptive_icon_background: "#2563EB"
   remove_alpha_ios: true
   min_sdk_android: 21
 
 flutter_native_splash:
-  color: "#2196F3"
-  image: "assets/icon/app_icon.png"
+  color: "#2563EB"
+  # 用前景 PNG（透明背景的圆 + 图标），避免和 launcher 自带深色背景冲突
+  image: "assets/icon/app_icon_foreground.png"
   android: true
   ios: true
   android_gravity: center
@@ -58,3 +64,6 @@ flutter_native_splash:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/icon/app_icon_foreground.png
+    - assets/icon/app_icon.png

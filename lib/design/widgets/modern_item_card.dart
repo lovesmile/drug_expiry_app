@@ -33,8 +33,12 @@ class ModernItemCard extends StatelessWidget {
         borderRadius: AppRadius.card,
         child: Material(
           color: Colors.transparent,
-          child: InkWell(
+          // 外层用 GestureDetector 而非 InkWell：InkWell 会吞掉所有内部 InkWell
+          // (如右下角删除按钮) 的 tap，导致删除按钮永远触发不到。GestureDetector
+          // 不会和子级 InkWell 的手势竞争，让删除按钮可以正常点击。
+          child: GestureDetector(
             onTap: onTap,
+            behavior: HitTestBehavior.opaque,
             child: Column(
               children: [
                 // 顶部状态色条
@@ -122,38 +126,51 @@ class ModernItemCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      // 底部信息行：有效期 + 保修期 + 删除按钮。
-                      // 修溢出 bug：原来用 Row+双 Expanded+按钮会在窄屏溢出 60px。
-                      // 改用 Wrap + 每个计数项约束最小宽度，窄屏自动换行。
-                      Wrap(
-                        spacing: 12,
-                        runSpacing: 8,
-                        alignment: WrapAlignment.start,
-                        crossAxisAlignment: WrapCrossAlignment.center,
+                      // 底部信息行：日期 / 剩余天数 / 删除按钮 三等分。
+                      // 用 Row + 三个 Expanded 等分宽度，避开原来的 Wrap 在窄屏
+                      // 把删除按钮挤到下一行的 bug，也让日期列稳定不被裁切。
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          if (item.hasDeadline)
-                            SizedBox(
-                              width: 160,
-                              child: _CountdownItem(
-                                icon: item.deadlineType ==
+                          if (item.hasDeadline) ...[
+                            Expanded(
+                              child: _DeadlineColumn(
+                                icon: item.effectiveDeadlineType ==
                                         ItemDeadlineType.warranty
                                     ? Icons.verified_user_rounded
                                     : Icons.event_rounded,
                                 label: _deadlineLabel(),
                                 date: item.formattedDeadlineDate,
-                                daysLeft: _deadlineDaysText(),
-                                isWarning: item.status == ItemStatus.warning ||
-                                    item.status == ItemStatus.expired,
-                                isWarranty: item.deadlineType ==
-                                    ItemDeadlineType.warranty,
-                                semantic: semantic,
                                 onSurfaceVariant: colors.onSurfaceVariant,
                               ),
                             ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: _DaysLeftChip(
+                                  daysLeft: _deadlineDaysText(),
+                                  isWarning:
+                                      item.status == ItemStatus.warning ||
+                                          item.status == ItemStatus.expired,
+                                  isWarranty: item.effectiveDeadlineType ==
+                                      ItemDeadlineType.warranty,
+                                  semantic: semantic,
+                                  onSurfaceVariant: colors.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                          ],
                           if (onDelete != null)
-                            _DeleteButton(
-                              onTap: onDelete!,
-                              errorColor: colors.error,
+                            Expanded(
+                              child: Align(
+                                alignment: Alignment.centerRight,
+                                child: _DeleteButton(
+                                  onTap: onDelete!,
+                                  errorColor: colors.error,
+                                ),
+                              ),
                             ),
                         ],
                       ),
@@ -224,7 +241,7 @@ class ModernItemCard extends StatelessWidget {
   }
 
   String _deadlineLabel() {
-    switch (item.deadlineType) {
+    switch (item.effectiveDeadlineType) {
       case ItemDeadlineType.expiry:
         return '有效期';
       case ItemDeadlineType.warranty:
@@ -274,48 +291,26 @@ class _InfoChip extends StatelessWidget {
   }
 }
 
-class _CountdownItem extends StatelessWidget {
+/// 卡片左下：图标 + "有效期/保修期" 标签 + 日期。两行紧凑排版。
+class _DeadlineColumn extends StatelessWidget {
   final IconData icon;
   final String label;
   final String date;
-  final String daysLeft;
-  final bool isWarning;
-  final bool isWarranty;
-  final AppSemanticColors semantic;
   final Color onSurfaceVariant;
 
-  const _CountdownItem({
+  const _DeadlineColumn({
     required this.icon,
     required this.label,
     required this.date,
-    required this.daysLeft,
-    this.isWarning = false,
-    this.isWarranty = false,
-    required this.semantic,
     required this.onSurfaceVariant,
   });
 
   @override
   Widget build(BuildContext context) {
-    // 状态主体色：跨主题不变；普通文字走 onSurfaceVariant 随主题切换。
-    final color = isWarning
-        ? (isWarranty ? AppPalette.statusWarning : AppPalette.statusExpired)
-        : onSurfaceVariant;
-    final containerColor = isWarning
-        ? (isWarranty
-            ? semantic.statusWarningContainer
-            : semantic.statusExpiredContainer)
-        : Colors.transparent;
-    final onContainerColor = isWarning
-        ? (isWarranty
-            ? semantic.onStatusWarningContainer
-            : semantic.onStatusExpiredContainer)
-        : color;
-
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 16, color: color),
+        Icon(icon, size: 16, color: onSurfaceVariant),
         const SizedBox(width: 6),
         Flexible(
           child: Column(
@@ -344,25 +339,59 @@ class _CountdownItem extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(width: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-          decoration: BoxDecoration(
-            color: containerColor,
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Text(
-            daysLeft,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: onContainerColor,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
       ],
+    );
+  }
+}
+
+/// 卡片中下：剩余天数胶囊。警告态用语义容器染色，过期会更强。
+class _DaysLeftChip extends StatelessWidget {
+  final String daysLeft;
+  final bool isWarning;
+  final bool isWarranty;
+  final AppSemanticColors semantic;
+  final Color onSurfaceVariant;
+
+  const _DaysLeftChip({
+    required this.daysLeft,
+    required this.isWarning,
+    required this.isWarranty,
+    required this.semantic,
+    required this.onSurfaceVariant,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isWarning
+        ? (isWarranty ? AppPalette.statusWarning : AppPalette.statusExpired)
+        : onSurfaceVariant;
+    final containerColor = isWarning
+        ? (isWarranty
+            ? semantic.statusWarningContainer
+            : semantic.statusExpiredContainer)
+        : Colors.transparent;
+    final onContainerColor = isWarning
+        ? (isWarranty
+            ? semantic.onStatusWarningContainer
+            : semantic.onStatusExpiredContainer)
+        : color;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: containerColor,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        daysLeft,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: onContainerColor,
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
     );
   }
 }

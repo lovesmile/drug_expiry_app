@@ -325,27 +325,28 @@ class _FamilyScreenState extends State<FamilyScreen> {
   }
 
   Widget _buildStatusCard() {
+    final semantic = context.semantic;
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: AppPalette.statusValidLight,
+        color: semantic.statusValidContainer,
         borderRadius: AppRadius.small,
       ),
       child: Row(
         children: [
           _syncing
-              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-              : Icon(Icons.info_outline, size: 16, color: Theme.of(context).colorScheme.primary),
+              ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: semantic.onStatusValidContainer))
+              : Icon(Icons.info_outline, size: 16, color: semantic.onStatusValidContainer),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(_statusText,
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Theme.of(context).colorScheme.primary)),
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: semantic.onStatusValidContainer)),
                 if (_statusDetail.isNotEmpty)
-                  Text(_statusDetail, style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                  Text(_statusDetail, style: TextStyle(fontSize: 11, color: semantic.onStatusValidContainer.withValues(alpha: 0.75))),
               ],
             ),
           ),

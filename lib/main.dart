@@ -1,22 +1,57 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'design/app_colors.dart';
+import 'design/widgets/app_logo.dart';
+import 'services/ad_service.dart';
 import 'services/notification_service.dart';
 import 'providers/item_provider.dart';
 import 'providers/family_provider.dart';
 import 'providers/settings_provider.dart';
 import 'providers/user_provider.dart';
 import 'l10n/app_localizations.dart';
-import 'services/purchase_service.dart';
 import 'screens/item_list_screen.dart';
 import 'screens/lock_screen.dart';
+import 'screens/webview_screen.dart';
+import 'dart:async';
 
-void main() async {
+/// 全局唯一 ScaffoldMessenger 的 key。仅在主页显示的 fallback SnackBar 走这里；
+/// 一旦 push 到其它路由，[HomeSnackBarHider] 会立刻把它 hide 掉。
+final GlobalKey<ScaffoldMessengerState> rootScaffoldMessengerKey =
+    GlobalKey<ScaffoldMessengerState>();
+
+/// 拦截 push/replace/pop 路由切换，离开首页时主动把主页的 fallback SnackBar 隐藏，
+/// 否则全局 ScaffoldMessenger 会让 SnackBar 跟着新页面一起挂下来。
+class HomeSnackBarHider extends NavigatorObserver {
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didPush(route, previousRoute);
+    rootScaffoldMessengerKey.currentState?.hideCurrentSnackBar();
+  }
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    super.didReplace(newRoute: newRoute, oldRoute: oldRoute);
+    rootScaffoldMessengerKey.currentState?.hideCurrentSnackBar();
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didPop(route, previousRoute);
+    rootScaffoldMessengerKey.currentState?.hideCurrentSnackBar();
+  }
+}
+
+void main() {
+  // 启动期不阻塞 runApp：把 Firebase / 通知 / 广告初始化放到首帧后异步执行，
+  // 否则 Firebase cold start + NotificationService.init + AdService.init 串起来
+  // 在低端机可达 10s+，用户看到 splash 卡在 native 一段时间，影响启动体验。
   WidgetsFlutterBinding.ensureInitialized();
-  await NotificationService.init();
   runApp(const ExpiryTrackerApp());
 }
 
@@ -37,6 +72,8 @@ class ExpiryTrackerApp extends StatelessWidget {
           return MaterialApp(
             debugShowCheckedModeBanner: false,
             title: '到期管家',
+            scaffoldMessengerKey: rootScaffoldMessengerKey,
+            navigatorObservers: [HomeSnackBarHider()],
             supportedLocales: const [Locale('zh'), Locale('en')],
             localizationsDelegates: const [
               AppLocalizationsDelegate(),
@@ -98,6 +135,26 @@ class _PrivacyGateState extends State<_PrivacyGate> {
   void initState() {
     super.initState();
     _checkAgreed();
+    // 启动期重活延后到首帧之后；这里只注册 microtask，不等在 async 链上，
+    // 让 _checkAgreed / setState 立即跑完，第一帧 UI 立即可见。
+    Future<void>.microtask(_bootstrapBackgroundServices);
+  }
+
+  /// 后台初始化重活（fire-and-forget）。不返回 future 给 initState，
+  /// 所有异常被吞掉，保证启动路径不被 Firebase / 通知 / 广告拖慢。
+  Future<void> _bootstrapBackgroundServices() async {
+    try {
+      await Firebase.initializeApp();
+      unawaited(FirebaseAnalytics.instance.logAppOpen().catchError((_) {}));
+    } catch (_) {}
+    // 50ms 让 UI 先完成首帧再启动通知 / 广告 init。
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    try {
+      await NotificationService.init();
+    } catch (_) {}
+    try {
+      await AdService.init();
+    } catch (_) {}
   }
 
   Future<void> _checkAgreed() async {
@@ -119,7 +176,9 @@ class _PrivacyGateState extends State<_PrivacyGate> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const _SplashScreen();
+    // 启动期不显示 Flutter splash —— 避免和 Android 12+ native splash
+    // 叠成"两个 splash"。直接让 native splash 的蓝底过渡到隐私协议页。
+    if (_loading) return const SizedBox.shrink();
     if (_agreed) return _buildApp();
 
     return Scaffold(
@@ -132,15 +191,8 @@ class _PrivacyGateState extends State<_PrivacyGate> {
               padding: const EdgeInsets.fromLTRB(24, 32, 24, 16),
               child: Column(
                 children: [
-                  Container(
-                    width: 72,
-                    height: 72,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Icon(Icons.inventory_2, size: 36, color: Theme.of(context).colorScheme.primary),
-                  ),
+                  // 与 launcher / 启动页同一品牌标识，避免隐私协议页露馅灰色盒子。
+                  const AppLogo(size: 72),
                   const SizedBox(height: 16),
                   Text(
                     '到期管家',
@@ -191,7 +243,7 @@ class _PrivacyGateState extends State<_PrivacyGate> {
                     child: FilledButton(
                       onPressed: _onAgree,
                       style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
-                      child: Text(context.tr('agree_continue'), style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                      child: Text(context.tr('agree_continue'), style: TextStyle(color: Theme.of(context).colorScheme.onPrimary, fontWeight: FontWeight.w600)),
                     ),
                   ),
                 ],
@@ -214,22 +266,13 @@ class _PrivacyGateState extends State<_PrivacyGate> {
     );
   }
 
-  void _showPrivacy() => _showDoc(context.tr('privacy_policy'), _docPrivacy);
-  void _showTerms() => _showDoc(context.tr('user_agreement'), _docTerms);
-  void _showSdk() => _showDoc(context.tr('sdk_list'), _docSdk);
+  void _showPrivacy() => _openDoc(kUrlPrivacy, context.tr('view_privacy'));
+  void _showTerms() => _openDoc(kUrlTerms, context.tr('view_terms'));
+  void _showSdk() => _openDoc(kUrlSdk, context.tr('view_sdk'));
 
-  void _showDoc(String title, String content) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(title),
-        content: SingleChildScrollView(
-          child: Text(content, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(context.tr('close'))),
-        ],
-      ),
+  Future<void> _openDoc(String url, String title) async {
+    await Navigator.of(context).push(
+      CupertinoPageRoute(builder: (_) => WebViewScreen(url: url, title: title)),
     );
   }
 
@@ -244,21 +287,16 @@ class _SplashScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.primary,
+      // 固定品牌蓝，与 Android 原生 splash (colors.xml#2563EB) 接近，
+      // 和 AppLogo 默认背景 (#2196F3) 也是同一色系：用户切换主题色
+      // （绿/青）时启动瞬间不会闪一下变色的色块。
+      backgroundColor: const Color(0xFF2563EB),
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 96,
-              height: 96,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: Icon(Icons.inventory_2, size: 48, color: Theme.of(context).colorScheme.primary),
-            ),
-            const SizedBox(height: 20),
+            const AppLogo(size: 72),
+            const SizedBox(height: 16),
             const Text(
               '到期管家',
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Colors.white),
@@ -268,7 +306,7 @@ class _SplashScreen extends StatelessWidget {
               'v1.0.0',
               style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.7)),
             ),
-            const SizedBox(height: 48),
+            const SizedBox(height: 32),
             SizedBox(
               width: 24,
               height: 24,
@@ -292,49 +330,28 @@ class _LockGate extends StatefulWidget {
 }
 
 class _LockGateState extends State<_LockGate> {
-  final PurchaseService _purchaseService = PurchaseService();
   bool _unlocked = false;
 
   @override
   void initState() {
     super.initState();
-    _initPurchaseService();
-    _checkLock();
-  }
-
-  Future<void> _initPurchaseService() async {
-    // Wait for providers to be available
-    await Future.delayed(const Duration(milliseconds: 200));
-    if (!mounted) return;
-    await _purchaseService.init(
-      onPremiumUnlocked: () {
-        if (mounted) {
-          context.read<UserProvider>().setPremium(true);
-        }
-      },
-    );
-  }
-
-  @override
-  void dispose() {
-    _purchaseService.dispose();
-    super.dispose();
-  }
-
-  Future<void> _checkLock() async {
-    // Wait for providers to load settings
-    await Future.delayed(const Duration(milliseconds: 100));
-    if (!mounted) return;
+    // Settings 已在到达此 gate 前加载完成：同步判断是否需要锁屏。
+    // 锁未开启时立即放行，避免多余的 v1.0.0 splash 一闪而过。
     final settings = context.read<SettingsProvider>();
     if (settings.appLockEnabled) {
-      final ok = await Navigator.push<bool>(
-        context,
-        MaterialPageRoute(builder: (_) => const LockScreen(), fullscreenDialog: true),
-      );
-      if (mounted) setState(() => _unlocked = ok == true);
+      WidgetsBinding.instance.addPostFrameCallback((_) => _promptLock());
     } else {
-      if (mounted) setState(() => _unlocked = true);
+      _unlocked = true;
     }
+  }
+
+  Future<void> _promptLock() async {
+    if (!mounted) return;
+    final ok = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const LockScreen(), fullscreenDialog: true),
+    );
+    if (mounted) setState(() => _unlocked = ok == true);
   }
 
   @override
@@ -346,115 +363,12 @@ class _LockGateState extends State<_LockGate> {
 
 const String kPrivacySummary = '''
 本应用承诺：所有物品数据仅存储于您的本地设备，不会自动上传至任何服务器。
-使用条码扫描、附近设备同步等功能时，需您主动授权相应权限。
+使用条码扫描、附近设备同步、应用锁、到期提醒等功能时，需您主动授权相应权限。
 继续使用即表示您同意以下协议条款。''';
 
-const String _docPrivacy = '''
-本应用尊重并保护您的隐私。请您仔细阅读以下隐私政策：
-
-1. 信息收集
-本应用所有数据（物品信息、家庭成员信息、条码缓存等）仅存储于您设备的本地 SQLite 数据库中，不会自动上传至任何服务器。
-
-2. 相机权限
-条码扫描功能需要相机权限，仅用于扫描物品条码。我们不会通过相机收集任何其他信息。
-
-3. 网络请求
-条码查询时，我们会向第三方 API 服务（阿里云市场、Open Food Facts）发送条码编号以获取物品信息。这些服务可能记录您的请求以提供 API 服务。您可在设置中关闭自动查询。
-
-4. 附近设备权限
-家庭同步功能使用 Nearby Connections API，通过 WiFi/蓝牙在局域网内发现附近设备并传输物品数据。此功能需要位置或附近设备权限，仅在您主动开启时使用。
-
-5. 文件存储
-导出缓存和导入照片时需要读写存储权限。导出的缓存文件仅包含物品条码信息，不包含个人身份信息。
-
-6. 信息分享
-当您使用分享功能时，系统会调用系统分享面板。您主动选择的分享目标（如微信、QQ 等）将收到您选择分享的物品信息。
-
-7. 第三方服务
-本应用使用了若干第三方 SDK（详见第三方SDK清单），这些 SDK 可能收集设备信息以提供服务。
-
-8. 联系我们
-如您对本隐私政策有任何疑问，请通过应用内「设置-意见反馈」联系我们。
-
-本隐私政策更新日期：2026年5月
-''';
-
-const String _docTerms = '''
-欢迎使用物品有效期管理工具。请您仔细阅读以下协议：
-
-1. 服务说明
-本应用是一款本地优先的物品有效期管理工具，提供物品信息录入、条码扫描、到期提醒等功能。所有数据默认存储于本地设备。
-
-2. 用户责任
-- 用户应自行备份重要数据
-- 物品有效期信息仅供参考，不构成医疗建议
-- 用户应对录入的物品信息准确性负责
-
-3. 免责声明
-- 本应用不提供用药指导，不承担因用药不当产生的任何责任
-- 到期提醒功能基于用户录入的日期计算，因录入错误导致的后果需用户自行承担
-- 数据丢失风险：建议定期导出备份
-
-4. 知识产权
-本应用及其所有内容的知识产权归开发者所有。
-
-5. 协议修改
-我们保留修改本协议的权利。修改后的协议将在应用内公布。
-
-6. 法律适用
-本协议适用中华人民共和国法律。
-''';
-
-const String _docSdk = '''
-本应用使用的第三方SDK如下：
-
-1. sqflite / SQLite
-- 用途：本地数据存储
-- 收集信息：无（仅本地存储）
-- 官网：https://pub.dev/packages/sqflite
-
-2. mobile_scanner
-- 用途：条码扫描
-- 收集信息：相机权限（本地处理，无上传）
-- 官网：https://pub.dev/packages/mobile_scanner
-
-3. flutter_local_notifications
-- 用途：本地通知提醒
-- 收集信息：无（本地通知）
-- 官网：https://pub.dev/packages/flutter_local_notifications
-
-4. image_picker / file_picker
-- 用途：选择照片和文件
-- 收集信息：存储/媒体权限
-- 官网：https://pub.dev/packages/image_picker
-
-5. share_plus
-- 用途：系统分享
-- 收集信息：无
-- 官网：https://pub.dev/packages/share_plus
-
-6. http
-- 用途：API 网络请求（条码查询）
-- 收集信息：请求的条码编号、IP地址
-- 官网：https://pub.dev/packages/http
-
-7. nearby_connections (Google Nearby Connections)
-- 用途：局域网设备发现与数据传输
-- 收集信息：位置/附近设备权限、WiFi状态
-- 官网：https://developers.google.com/nearby
-
-8. path_provider / shared_preferences
-- 用途：文件路径和应用设置存储
-- 收集信息：无
-- 官网：https://pub.dev/packages/path_provider
-
-9. permission_handler
-- 用途：权限管理
-- 收集信息：设备权限状态
-- 官网：https://pub.dev/packages/permission_handler
-
-10. provider
-- 用途：状态管理
-- 收集信息：无
-- 官网：https://pub.dev/packages/provider
-''';
+const String kUrlPrivacy =
+    'https://lovesmile.github.io/expiry-tracker-privacy/index.html';
+const String kUrlTerms =
+    'https://lovesmile.github.io/expiry-tracker-privacy/terms.html';
+const String kUrlSdk =
+    'https://lovesmile.github.io/expiry-tracker-privacy/sdk.html';

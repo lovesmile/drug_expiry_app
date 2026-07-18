@@ -3,13 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
-import '../constants.dart';
+import '../design/app_colors.dart';
 import '../models/item.dart';
 import '../providers/item_provider.dart';
-import '../providers/user_provider.dart';
 import '../services/barcode_service.dart';
 import '../l10n/app_localizations.dart';
-import 'premium_screen.dart';
 
 class AddEditItemScreen extends StatefulWidget {
   final Item? item;
@@ -214,12 +212,13 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
       return options;
     }
 
+    final fallback = _allIcons.firstWhere(
+      (icon) => icon.codePoint == _iconCodePoint,
+      orElse: () => _allIcons[_allIcons.length ~/ 2],
+    );
     return [
       ...options,
-      _ItemIconOption(
-        IconData(_iconCodePoint, fontFamily: 'MaterialIcons'),
-        'icon_label_general',
-      ),
+      _ItemIconOption(fallback, 'icon_label_general'),
     ];
   }
 
@@ -335,7 +334,7 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
           filled: true,
           fillColor: colors.surfaceContainerLow,
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppSizes.inputRadius),
+            borderRadius: BorderRadius.circular(AppRadius.sm),
             borderSide: BorderSide.none,
           ),
         ),
@@ -408,7 +407,7 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: colors.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(AppSizes.inputRadius),
+            borderRadius: BorderRadius.circular(AppRadius.sm),
           ),
           child: Row(
             children: [
@@ -563,37 +562,6 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
       return;
     }
 
-    // Premium limit check for new items
-    if (!_isEditing) {
-      final user = context.read<UserProvider>().user;
-      if (user != null &&
-          !user.isPremium &&
-          user.recordCount >= user.recordLimit) {
-        final ok = await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: Text(context.tr('premium_limit_reached')),
-            content: Text(context
-                .tr('premium_limit_body')
-                .replaceAll('{limit}', user.recordLimit.toString())),
-            actions: [
-              TextButton(
-                  onPressed: () => Navigator.pop(ctx, false),
-                  child: Text(context.tr('cancel'))),
-              FilledButton(
-                  onPressed: () => Navigator.pop(ctx, true),
-                  child: Text(context.tr('premium_btn_upgrade'))),
-            ],
-          ),
-        );
-        if (ok == true && mounted) {
-          Navigator.push(context,
-              MaterialPageRoute(builder: (_) => const PremiumScreen()));
-        }
-        return;
-      }
-    }
-
     setState(() => _saving = true);
 
     try {
@@ -629,7 +597,6 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
         await provider.updateItem(item);
       } else {
         await provider.addItem(item);
-        if (mounted) context.read<UserProvider>().incrementRecordCount();
       }
 
       if (mounted) Navigator.pop(context);
@@ -698,13 +665,13 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
                   height: 120,
                   decoration: BoxDecoration(
                     color: colors.surfaceContainerLow,
-                    borderRadius: BorderRadius.circular(AppSizes.inputRadius),
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
                     border: Border.all(color: colors.outlineVariant),
                   ),
                   child: _photoPath != null
                       ? ClipRRect(
                           borderRadius:
-                              BorderRadius.circular(AppSizes.inputRadius),
+                              BorderRadius.circular(AppRadius.sm),
                           child: Image.file(
                             File(_photoPath!),
                             fit: BoxFit.contain,
@@ -714,7 +681,7 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
                       : widget.item?.photoPath != null
                           ? ClipRRect(
                               borderRadius:
-                                  BorderRadius.circular(AppSizes.inputRadius),
+                                  BorderRadius.circular(AppRadius.sm),
                               child: Image.file(
                                 File(widget.item!.photoPath!),
                                 fit: BoxFit.contain,
@@ -746,7 +713,7 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppSizes.buttonRadius)),
+                    borderRadius: BorderRadius.circular(AppRadius.md)),
               ),
               child: _saving
                   ? SizedBox(
@@ -797,7 +764,7 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
           filled: true,
           fillColor: colors.surfaceContainerLow,
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppSizes.inputRadius),
+            borderRadius: BorderRadius.circular(AppRadius.sm),
             borderSide: BorderSide.none,
           ),
         ),

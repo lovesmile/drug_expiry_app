@@ -8,6 +8,8 @@ import '../design/app_colors.dart';
 import '../design/widgets/modern_item_card.dart';
 import '../design/widgets/modern_empty_state.dart';
 import '../widgets/loading_indicator.dart';
+import '../widgets/banner_ad_widget.dart';
+import '../services/notification_service.dart';
 import '../l10n/app_localizations.dart';
 import 'add_edit_item_screen.dart';
 import 'item_detail_screen.dart';
@@ -24,25 +26,209 @@ class ItemListScreen extends StatefulWidget {
 
 class _ItemListScreenState extends State<ItemListScreen> {
   final _searchController = TextEditingController();
+  final ScrollController _listScrollController = ScrollController();
   int _selectedTab = 0;
+  bool _hasShownFallbackReminder = false;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ItemProvider>().loadItems();
-      context.read<UserProvider>().loadUser();
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowFallback());
+  }
+
+  Future<void> _maybeShowFallback() async {
+    if (!mounted || _hasShownFallbackReminder) return;
+    final itemProvider = context.read<ItemProvider>();
+    final userProvider = context.read<UserProvider>();
+    await itemProvider.loadItems();
+    userProvider.loadUser();
+    NotificationService.rescheduleFromDb();
+    if (!mounted || _hasShownFallbackReminder) return;
+    final warning = itemProvider.warningCount;
+    final expired = itemProvider.expiredCount;
+    if (warning + expired == 0) return;
+    _hasShownFallbackReminder = true;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(context.tr('fallback_reminder', {
+          'warning': warning.toString(),
+          'expired': expired.toString(),
+        })),
+        duration: const Duration(seconds: 6),
+        action: SnackBarAction(
+          label: context.tr('view'),
+          onPressed: () {
+            setState(() {
+              _selectedTab = expired > 0 ? 3 : 2;
+            });
+            if (_listScrollController.hasClients) {
+              _listScrollController.jumpTo(0);
+            }
+          },
+        ),
+      ),
+    );
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _listScrollController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    return _buildScaffold(context);
+  }
+  Widget _buildSummaryCard() {    return Consumer<ItemProvider>(
+      builder: (context, provider, _) {
+        return Padding(
+          padding: EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: Card(
+            elevation: 0,
+            shape: RoundedRectangleBorder(borderRadius: AppRadius.large),
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  _statItem(context.tr('total_count'), provider.totalCount, Theme.of(context).colorScheme.primary),
+                  _statDivider(),
+                  _statItem(context.tr('drug_status_valid'), provider.validCount, AppPalette.statusValid),
+                  _statDivider(),
+                  _statItem(context.tr('drug_status_warning'), provider.warningCount, AppPalette.statusWarning),
+                  _statDivider(),
+                  _statItem(context.tr('drug_status_expired'), provider.expiredCount, AppPalette.statusExpired),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _statItem(String label, int count, Color color) {
+    return Expanded(
+      child: Column(
+        children: [
+          Text(count.toString(), style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color)),
+          Text(label, style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+        ],
+      ),
+    );
+  }
+
+  Widget _statDivider() {
+    return Container(width: 1, height: 32, color: Theme.of(context).colorScheme.outlineVariant);
+  }
+
+  Widget _buildSearchBar() {
+    return Container(
+      padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
+      child: TextField(
+        controller: _searchController,
+        onChanged: (v) => context.read<ItemProvider>().setSearchQuery(v),
+        decoration: InputDecoration(
+          hintText: context.tr('search_hint'),
+          hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
+          prefixIcon: Icon(Icons.search, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          suffixIcon: ListenableBuilder(
+            listenable: _searchController,
+            builder: (context, _) => _searchController.text.isNotEmpty
+                ? IconButton(
+                    icon: Icon(Icons.clear, size: 18),
+                    onPressed: () {
+                      _searchController.clear();
+                      context.read<ItemProvider>().setSearchQuery('');
+                    },
+                  )
+                : const SizedBox.shrink(),
+          ),
+          filled: true,
+          fillColor: Theme.of(context).colorScheme.surface,
+          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          border: OutlineInputBorder(borderRadius: AppRadius.small, borderSide: BorderSide.none),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTabBar() {
+    return Consumer<ItemProvider>(
+      builder: (context, provider, _) {
+        return Padding(
+          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          child: Row(
+            children: [
+              _buildTab(0, context.tr('tab_all'), provider.activeItems.length),
+              const SizedBox(width: 6),
+              _buildTab(1, context.tr('tab_valid'), provider.validCount),
+              const SizedBox(width: 6),
+              _buildTab(2, context.tr('tab_warning'), provider.warningCount),
+              const SizedBox(width: 6),
+              _buildTab(3, context.tr('tab_expired'), provider.expiredCount),
+              const SizedBox(width: 6),
+              _buildTab(4, context.tr('tab_archived'), provider.archivedCount),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildTab(int index, String label, int count) {
+    final selected = _selectedTab == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          if (_selectedTab == index) return;
+          setState(() => _selectedTab = index);
+          // 切分类 tab 时把列表滚回顶部，避免上一 tab 的滚动位置让用户看不见首项。
+          if (_listScrollController.hasClients) {
+            _listScrollController.jumpTo(0);
+          }
+        },
+        child: Container(
+          padding: EdgeInsets.symmetric(vertical: 6),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(color: selected ? Theme.of(context).colorScheme.primary : Colors.transparent, width: 2),
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                  color: selected ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+              Text(
+                count.toString(),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: selected ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
@@ -131,177 +317,13 @@ class _ItemListScreenState extends State<ItemListScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => Navigator.push(context, CupertinoPageRoute(builder: (_) => const AddEditItemScreen())),
-        child: Icon(Icons.add, color: Colors.white),
+        shape: const CircleBorder(),
+        elevation: 6,
+        child: Icon(Icons.add, color: Colors.white, size: 28),
       ),
-    );
-  }
-
-  Widget _buildSummaryCard() {
-    return Consumer<ItemProvider>(
-      builder: (context, provider, _) {
-        return Padding(
-          padding: EdgeInsets.fromLTRB(16, 12, 16, 0),
-          child: Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(borderRadius: AppRadius.large),
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                children: [
-                  _statItem(context.tr('total_count'), provider.totalCount, Theme.of(context).colorScheme.primary),
-                  _statDivider(),
-                  _statItem(context.tr('drug_status_valid'), provider.validCount, AppPalette.statusValid),
-                  _statDivider(),
-                  _statItem(context.tr('drug_status_warning'), provider.warningCount, AppPalette.statusWarning),
-                  _statDivider(),
-                  _statItem(context.tr('drug_status_expired'), provider.expiredCount, AppPalette.statusExpired),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _statItem(String label, int count, Color color) {
-    return Expanded(
-      child: Column(
-        children: [
-          Text(count.toString(), style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color)),
-          Text(label, style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
-        ],
-      ),
-    );
-  }
-
-  Widget _statDivider() {
-    return Container(width: 1, height: 32, color: Theme.of(context).colorScheme.outlineVariant);
-  }
-
-  Widget _buildSearchBar() {
-    return Container(
-      padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
-      child: TextField(
-        controller: _searchController,
-        onChanged: (v) => context.read<ItemProvider>().setSearchQuery(v),
-        decoration: InputDecoration(
-          hintText: context.tr('search_hint'),
-          hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
-          prefixIcon: Icon(Icons.search, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
-          suffixIcon: ListenableBuilder(
-            listenable: _searchController,
-            builder: (context, _) => _searchController.text.isNotEmpty
-                ? IconButton(
-                    icon: Icon(Icons.clear, size: 18),
-                    onPressed: () {
-                      _searchController.clear();
-                      context.read<ItemProvider>().setSearchQuery('');
-                    },
-                  )
-                : const SizedBox.shrink(),
-          ),
-          filled: true,
-          fillColor: Theme.of(context).colorScheme.surface,
-          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          border: OutlineInputBorder(borderRadius: AppRadius.small, borderSide: BorderSide.none),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTabBar() {
-    return Consumer<ItemProvider>(
-      builder: (context, provider, _) {
-        return Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          child: Row(
-            children: [
-              _buildTab(0, context.tr('tab_all'), provider.showArchived ? _totalWithArchived(provider) : provider.activeItems.length),
-              const SizedBox(width: 8),
-              _buildTab(1, context.tr('tab_valid'), provider.validCount),
-              const SizedBox(width: 8),
-              _buildTab(2, context.tr('tab_warning'), provider.warningCount),
-              const SizedBox(width: 8),
-              _buildTab(3, context.tr('tab_expired'), provider.expiredCount),
-              GestureDetector(
-                onTap: () => context.read<ItemProvider>().toggleShowArchived(),
-                child: Container(
-                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                  decoration: BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(color: provider.showArchived ? Theme.of(context).colorScheme.primary : Colors.transparent, width: 2),
-                    ),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.archive_outlined,
-                        size: 16,
-                        color: provider.showArchived ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        context.tr('tab_archived'),
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: provider.showArchived ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  int _totalWithArchived(ItemProvider provider) {
-    return provider.items.length;
-  }
-
-  Widget _buildTab(int index, String label, int count) {
-    final selected = _selectedTab == index;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => _selectedTab = index),
-        child: Container(
-          padding: EdgeInsets.symmetric(vertical: 6),
-          decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(color: selected ? Theme.of(context).colorScheme.primary : Colors.transparent, width: 2),
-            ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                  color: selected ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-              Text(
-                count.toString(),
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  color: selected ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: const BannerAdWidget(),
       ),
     );
   }
@@ -311,7 +333,15 @@ class _ItemListScreenState extends State<ItemListScreen> {
       builder: (context, provider, _) {
         if (provider.isLoading) return LoadingIndicator(message: context.tr('loading'));
 
+        // filteredItems 已经做搜索+排序，这里按 tab 范围(active vs archive) + 状态再过滤
         var list = provider.filteredItems;
+        if (_selectedTab == 4) {
+          list = list
+              .where((d) => d.usageStatus != UsageStatus.active)
+              .toList();
+        } else {
+          list = list.where((d) => d.usageStatus == UsageStatus.active).toList();
+        }
         if (_selectedTab == 1) list = list.where((d) => d.status == ItemStatus.valid).toList();
         if (_selectedTab == 2) list = list.where((d) => d.status == ItemStatus.warning).toList();
         if (_selectedTab == 3) list = list.where((d) => d.status == ItemStatus.expired).toList();
@@ -325,10 +355,19 @@ class _ItemListScreenState extends State<ItemListScreen> {
               child: SizedBox(
                 height: MediaQuery.of(context).size.height * 0.5,
                 child: ModernEmptyState(
-                  title: _selectedTab == 0 ? context.tr('empty_title') : context.tr('empty_title_filtered'),
-                  subtitle: context.tr('empty_subtitle'),
+                  title: _selectedTab == 0
+                      ? context.tr('empty_title')
+                      : (_selectedTab == 4
+                          ? context.tr('empty_title_archived')
+                          : context.tr('empty_title_filtered')),
+                  subtitle: _selectedTab == 4
+                      ? context.tr('empty_subtitle_archived')
+                      : context.tr('empty_subtitle'),
                   actionLabel: context.tr('add_drug'),
-                  onAction: () => Navigator.push(context, CupertinoPageRoute(builder: (_) => const AddEditItemScreen())),
+                  onAction: _selectedTab == 4
+                      ? null
+                      : () => Navigator.push(context,
+                          CupertinoPageRoute(builder: (_) => const AddEditItemScreen())),
                 ),
               ),
             ),
@@ -339,6 +378,7 @@ class _ItemListScreenState extends State<ItemListScreen> {
           color: Theme.of(context).colorScheme.primary,
           onRefresh: provider.loadItems,
           child: ListView.builder(
+            controller: _listScrollController,
             padding: EdgeInsets.only(top: 4, bottom: 80),
             itemCount: list.length,
             itemBuilder: (context, index) {
@@ -369,7 +409,6 @@ class _ItemListScreenState extends State<ItemListScreen> {
           TextButton(
             onPressed: () {
               context.read<ItemProvider>().deleteItem(id);
-              context.read<UserProvider>().decrementRecordCount();
               Navigator.pop(ctx);
             },
             child: Text(context.tr('delete'), style: TextStyle(color: AppPalette.statusExpired)),

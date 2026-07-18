@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../models/item.dart';
 import '../services/database_service.dart';
+import '../services/notification_service.dart';
 
 enum ItemSortBy { expiryDate, name, createdAt }
 
@@ -27,12 +28,18 @@ class ItemProvider extends ChangeNotifier {
       activeItems.where((d) => d.status == ItemStatus.warning).length;
   int get expiredCount =>
       activeItems.where((d) => d.status == ItemStatus.expired).length;
+  int get archivedCount =>
+      _items.where((d) => d.usageStatus != UsageStatus.active).length;
 
   List<Item> get activeItems =>
       _items.where((d) => d.usageStatus == UsageStatus.active).toList();
 
+  List<Item> get archivedItems =>
+      _items.where((d) => d.usageStatus != UsageStatus.active).toList();
+
   List<Item> get filteredItems {
-    var list = _showArchived ? _items : activeItems;
+    // 注意：这里不再按 usageStatus 过滤，调用方按 tab 自己决定 active/archived
+    var list = List<Item>.from(_items);
     final noDeadlineDate = DateTime(9999, 12, 31);
 
     // Apply search filter
@@ -80,17 +87,20 @@ class ItemProvider extends ChangeNotifier {
   Future<int> addItem(Item item) async {
     final id = await _db.insertItem(item);
     await loadItems();
+    await NotificationService.rescheduleFromDb();
     return id;
   }
 
   Future<void> updateItem(Item item) async {
     await _db.updateItem(item);
     await loadItems();
+    await NotificationService.rescheduleFromDb();
   }
 
   Future<void> deleteItem(int id) async {
     await _db.deleteItem(id);
     await loadItems();
+    await NotificationService.rescheduleFromDb();
   }
 
   void setSearchQuery(String query) {

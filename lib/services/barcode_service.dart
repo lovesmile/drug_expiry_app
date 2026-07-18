@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
 import '../constants.dart';
 import 'database_service.dart';
 
@@ -148,32 +147,37 @@ class BarcodeService {
     });
   }
 
-  /// 导出缓存到 JSON 文件（分享给家人）
-  static Future<String> exportCache() async {
+  /// 构建缓存 JSON 字符串（由调用方通过 SAF 保存到用户可见位置）
+  static Future<String> buildCacheJson() async {
     final db = await DatabaseService.database;
     final rows = await db.query(AppStrings.barcodeCacheTable);
-    final dir = await getApplicationDocumentsDirectory();
-    final file = File('${dir.path}/barcode_cache.json');
-    await file.writeAsString(jsonEncode(rows));
-    return file.path;
+    return jsonEncode(rows);
   }
 
-  /// 从 JSON 文件导入缓存（接收家人分享）
-  static Future<int> importCache(String filePath) async {
+  /// 从 JSON 文件导入缓存（接收家人分享）：用 INSERT OR IGNORE 区分新增与跳过。
+  /// 返回 {'added': 新插入条数, 'skipped': 已存在条数}。
+  static Future<Map<String, int>> importCache(String filePath) async {
     final file = File(filePath);
-    if (!await file.exists()) return 0;
+    if (!await file.exists()) return {'added': 0, 'skipped': 0};
     final data = jsonDecode(await file.readAsString()) as List;
-    int count = 0;
+    int added = 0;
+    int skipped = 0;
     for (final row in data) {
-      await _db.cacheBarcode(row['barcode'] as String, {
+      final barcode = row['barcode'] as String?;
+      if (barcode == null) continue;
+      final id = await _db.insertCacheIfMissing(barcode, {
         'name': row['name'] as String?,
         'generic_name': row['generic_name'] as String?,
         'manufacturer': row['manufacturer'] as String?,
         'specification': row['specification'] as String?,
       });
-      count++;
+      if (id > 0) {
+        added++;
+      } else {
+        skipped++;
+      }
     }
-    return count;
+    return {'added': added, 'skipped': skipped};
   }
 
   static Future<void> clearCache() => _db.clearBarcodeCache();

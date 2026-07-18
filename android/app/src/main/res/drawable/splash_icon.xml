@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 108dp viewport, icon content 占 40dp 居中。SplashScreen API 会把整个
+     108dp 渲染成图标区域，但实际可见内容只有中间的 40dp，避免"放大到
+     模糊"的 launcher icon 感觉。内容用 vector 不会模糊。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- 外圈浅蓝边框 -->
+    <path
+        android:fillColor="#E0EBFC"
+        android:pathData="M54,54 m-20,0 a20,20 0 1,0 40,0 a20,20 0 1,0 -40,0" />
+    <!-- 表盘（白色） -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,54 m-16,0 a16,16 0 1,0 32,0 a16,16 0 1,0 -32,0" />
+    <!-- 12 点刻度 -->
+    <path
+        android:fillColor="#1A1F2E"
+        android:pathData="M53,40 h2 v4 h-2 z" />
+    <!-- 3 点刻度 -->
+    <path
+        android:fillColor="#1A1F2E"
+        android:pathData="M68,53 h4 v2 h-4 z" />
+    <!-- 6 点刻度 -->
+    <path
+        android:fillColor="#1A1F2E"
+        android:pathData="M53,68 h2 v4 h-2 z" />
+    <!-- 9 点刻度 -->
+    <path
+        android:fillColor="#1A1F2E"
+        android:pathData="M40,53 h4 v2 h-4 z" />
+    <!-- 时针 -->
+    <path
+        android:fillColor="#1A1F2E"
+        android:strokeWidth="2"
+        android:strokeColor="#1A1F2E"
+        android:pathData="M54,54 L54,46" />
+    <!-- 分针 -->
+    <path
+        android:fillColor="#1A1F2E"
+        android:strokeWidth="2"
+        android:strokeColor="#1A1F2E"
+        android:pathData="M54,54 L60,52" />
+    <!-- 中心点 -->
+    <path
+        android:fillColor="#1A1F2E"
+        android:pathData="M54,54 m-1.5,0 a1.5,1.5 0 1,0 3,0 a1.5,1.5 0 1,0 -3,0" />
+    <!-- 右下绿色对勾徽章 -->
+    <path
+        android:fillColor="#10B981"
+        android:pathData="M66,66 m-7,0 a7,7 0 1,0 14,0 a7,7 0 1,0 -14,0" />
+    <!-- 对勾 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:strokeWidth="1.6"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M63,66 L65.5,68.5 L69.5,63.5" />
+</vector>

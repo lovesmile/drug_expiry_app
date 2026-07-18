@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#2196F3</color>
+    <color name="ic_launcher_background">#2563EB</color>
+    <!-- Android 12+ native splash 专用背景色，比 launcher 略亮一档，
+         让白色 status bar 图标（时间/电量/信号）在冷启动瞬间更清晰 -->
+    <color name="splash_background">#3B82F6</color>
 </resources>

@@ -1,4 +1,4 @@
-﻿# 过期管家 - 物品有效期管理工具
+﻿# 到期管家 - 物品有效期管理工具
 
 <p align="center">
   <img src="assets/icon/app_icon.png" width="80" alt="App Icon">
@@ -28,8 +28,8 @@
   - 扫描成功 → 进入添加页并预填数据
   - 扫描失败 → 提示用户确认条码，手动录入
   - 本地缓存查询结果，再次扫码秒响应
-- **物品图标**：9 种图标可选（药片、液体、喷雾、颗粒、胶囊、滴剂、保健、包/套装、食品）
-- **5 种类别**：
+- **物品图标**：14 种图标可选（药片、液体、喷雾、颗粒、胶囊、滴剂、保健、包/套装、食品、酒水、美妆、日用、电子、通用）
+- **6 种类别**：
 
   | 类别 | 说明 |
   |------|------|
@@ -37,6 +37,7 @@
   | 食品 | 零食、调味品、保健品食品等 |
   | 化妆品 | 护肤品、彩妆、洗护用品等 |
   | 日用品 | 清洁用品、纸品、家居用品等 |
+  | 电子产品 | 含购买日期 + 保修月数；列表倒计时优先按保修截止日计算 |
   | 其他 | 不属于以上类别的物品 |
 
 - **有效期状态**：
@@ -67,12 +68,21 @@
   - 连接提示和操作引导
 
 ### 5. 提醒通知
-- **本地通知**：flutter_local_notifications
-- **提醒规则**（可配置时间）：
-  - 30 天提醒
-  - 7 天提醒
-  - 3 天提醒
-  - 过期提醒
+- **本地通知**：flutter_local_notifications + zonedSchedule（Android 走 `AlarmManager`，iOS 走 UNUserNotificationCenter）
+- **提醒规则**（每个桶可独立开关 + 配置时间）：
+  - 30 天提醒（默认 20:00）
+  - 7 天提醒（默认 09:00）
+  - 3 天提醒（默认 09:00）
+  - 过期提醒（默认 09:00）
+- **不精确模式**：使用 `AndroidScheduleMode.inexactAllowWhileIdle`，无需 `SCHEDULE_EXACT_ALARM` 权限，Google Play 审核更友好；代价是 OEM 电池管理可能延后几分钟到几小时
+- **通知 ID**：`item.id * 10 + bucketOffset`（offset 0=过期 / 1=30天 / 2=7天 / 3=3天），保证每个物品每个桶唯一
+- **触发时机**：
+  - 增/删/改物品或提醒设置 → 自动重新排期
+  - app 冷启动 → 重新排期
+  - 不补发过去的触发点（deadline 之前已过的桶会被跳过）
+- **打开 app 兜底**：冷启动时若仍有「即将过期」或「已过期」物品，会在底部弹一次 SnackBar（聚合「您有 N 个即将到期，M 个已过期」），覆盖通知被禁用、延迟或用户长时间没启动的场景
+- **文案**：跟随系统语言（中英），通知内含物品名
+- **已知行为**：在「过期当天 + timeExpired 时刻」前后几分钟内打开 app，SnackBar 与系统通知会短暂同时出现（不同位置）
 
 ### 6. 设置
 - **个人信息**：昵称编辑、物品统计
@@ -94,7 +104,7 @@
 - **应用锁**：可选生物识别验证进入
 - **权限按需申请**：扫码（相机）、定位（附近设备）、存储（备份导入导出）
 
-详见：[隐私政策](privacy_policy.md)
+详见：[隐私政策](https://lovesmile.github.io/expiry-tracker-privacy/index.html) · [用户协议](https://lovesmile.github.io/expiry-tracker-privacy/terms.html) · [第三方 SDK 清单](https://lovesmile.github.io/expiry-tracker-privacy/sdk.html)
 
 ---
 
@@ -108,7 +118,7 @@
 | 本地化 | flutter_localizations + 自定义 AppLocalizations（中英双语） |
 | 主题 | Material 3（colorSchemeSeed 动态取色） |
 | 持久化 | SharedPreferences（设置项） |
-| 第三方服务 | 阿里云市场 / Open Food Facts（条码查询 API） |
+| 第三方服务 | 阿里云市场 / Open Food Facts（条码查询 API）、Google Mobile Ads（横幅广告） |
 
 ### 核心依赖
 
@@ -127,6 +137,8 @@ dependencies:
   intl: ^0.20.2
   shared_preferences: ^2.5.3
   flutter_local_notifications: ^18.0.1
+  timezone: ^0.10.0            # tz 库，zonedSchedule 必需
+  flutter_timezone: ^4.1.0     # 读取设备时区名用于 tz.setLocalLocation
   permission_handler: ^11.3.1
   share_plus: ^10.1.4
   file_picker: ^8.1.7
@@ -134,7 +146,7 @@ dependencies:
   nearby_connections: ^4.3.0
   url_launcher: ^6.3.1
   local_auth: ^2.3.0
-  in_app_purchase: ^3.2.0
+  google_mobile_ads: ^5.3.0
 ```
 
 ---
@@ -165,14 +177,13 @@ lib/
 │   ├── family_screen.dart           # 家庭与同步页
 │   ├── settings_screen.dart         # 设置页
 │   ├── lock_screen.dart             # 应用锁解锁页
-│   └── premium_screen.dart          # Premium 订阅页
 ├── services/
 │   ├── database_service.dart         # SQLite 数据库操作
 │   ├── barcode_service.dart         # 条码查询 + 缓存
 │   ├── nearby_service.dart          # 局域网设备发现与同步
 │   ├── notification_service.dart    # 本地通知
 │   ├── share_service.dart           # 分享功能
-│   └── purchase_service.dart        # 内购服务
+│   └── ad_service.dart              # Google Mobile Ads 横幅
 └── widgets/
     ├── item_card.dart               # 物品列表卡片
     ├── countdown_display.dart        # 倒计时显示组件
@@ -192,7 +203,7 @@ lib/
   - 位置（附近设备）：仅在家动同步功能时使用
   - 存储（备份导入导出）：仅在用户主动导出/导入时使用
 
-详见：[隐私政策](privacy_policy.md)
+详见：[隐私政策](https://lovesmile.github.io/expiry-tracker-privacy/index.html) · [用户协议](https://lovesmile.github.io/expiry-tracker-privacy/terms.html) · [第三方 SDK 清单](https://lovesmile.github.io/expiry-tracker-privacy/sdk.html)
 
 ---
 
@@ -207,6 +218,12 @@ flutter run
 
 # 构建 Android APK
 flutter build apk --release
+
+# 构建 Android AAB（上架用）
+# 注：ItemCategory 使用动态 IconData（iconCodePoint 来自 DB），
+# tree-shaker 无法静态分析，所以加 --no-tree-shake-icons 打包全量 MaterialIcons。
+# 体积代价约 +1.5MB。长期方案见 docs/STATUS.md 重构 ItemIcon enum。
+flutter build appbundle --release --no-tree-shake-icons
 
 # 构建 iOS
 flutter build ios --release

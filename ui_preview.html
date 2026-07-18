@@ -1,0 +1,301 @@
+﻿<!DOCTYPE html>
+<html lang='zh-CN'>
+<head>
+  <meta charset='UTF-8'>
+  <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+  <title>过期管家 - 新 UI 设计预览</title>
+  <link href='https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap' rel='stylesheet'>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Inter',sans-serif;background:linear-gradient(135deg,#f8fafc 0%,#f1f5f9 100%);min-height:100vh;color:#0f172a;padding:20px}
+    .container{max-width:420px;margin:0 auto;padding-bottom:40px}
+    .header{background:#fff;border-radius:16px;padding:20px;margin-bottom:16px;box-shadow:0 4px 20px rgba(0,0,0,.06)}
+    .header-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+    .header-title{font-size:22px;font-weight:700;background:linear-gradient(135deg,#10b981,#059669);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .icon-btn{width:40px;height:40px;border-radius:12px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;cursor:pointer;border:none}
+    .icon-btn:hover{background:#e2e8f0;transform:scale(1.05)}
+    .search-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:10px}
+    .search-box input{flex:1;border:none;background:transparent;font-size:15px;color:#475569;outline:none}
+    .stats-card{background:linear-gradient(135deg,#fff 0%,#f8fafc 100%);border-radius:20px;padding:20px;margin-bottom:16px;box-shadow:0 4px 24px rgba(0,0,0,.06);position:relative;overflow:hidden}
+    .stats-card::before{content:'';position:absolute;top:-50px;right:-50px;width:150px;height:150px;background:linear-gradient(135deg,rgba(16,185,129,.1),transparent);border-radius:50%}
+    .stats-header{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+    .stats-icon{width:40px;height:40px;background:linear-gradient(135deg,#10b981,#059669);border-radius:12px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(16,185,129,.3)}
+    .stats-icon svg{width:20px;height:20px;fill:#fff}
+    .stats-title{font-size:16px;font-weight:600;color:#0f172a}
+    .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+    .stat-item{text-align:center;padding:14px 8px;border-radius:14px}
+    .stat-item.total{background:#f1f5f9}
+    .stat-item.valid{background:linear-gradient(135deg,rgba(16,185,129,.15),rgba(52,211,153,.1))}
+    .stat-item.warning{background:linear-gradient(135deg,rgba(245,158,11,.15),rgba(251,191,36,.1))}
+    .stat-item.expired{background:linear-gradient(135deg,rgba(239,68,68,.15),rgba(248,113,113,.1))}
+    .stat-value{font-size:24px;font-weight:700;margin-bottom:2px}
+    .stat-value.total{color:#0f172a}
+    .stat-value.valid{color:#10b981}
+    .stat-value.warning{color:#f59e0b}
+    .stat-value.expired{color:#ef4444}
+    .stat-label{font-size:11px;color:#64748b}
+    .tabs-container{background:#f1f5f9;border-radius:16px;padding:4px;display:flex;margin-bottom:16px}
+    .tab{flex:1;text-align:center;padding:12px 8px;border-radius:12px;font-size:13px;font-weight:500;color:#64748b;cursor:pointer;transition:all .2s;background:transparent;border:none}
+    .tab.active{background:#fff;color:#10b981;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+    .item-card{background:#fff;border-radius:16px;margin-bottom:12px;box-shadow:0 4px 16px rgba(0,0,0,.06);overflow:hidden;transition:transform .2s,box-shadow .2s}
+    .item-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.1)}
+    .item-card-header{height:4px}
+    .item-card-header.valid{background:linear-gradient(90deg,#34d399,#10b981)}
+    .item-card-header.warning{background:linear-gradient(90deg,#fbbf24,#f59e0b)}
+    .item-card-header.expired{background:linear-gradient(90deg,#f87171,#ef4444)}
+    .item-card-content{padding:16px}
+    .item-row{display:flex;gap:12px;margin-bottom:12px}
+    .item-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .item-icon.valid{background:rgba(16,185,129,.1)}
+    .item-icon.valid svg{fill:#10b981}
+    .item-icon.warning{background:rgba(245,158,11,.1)}
+    .item-icon.warning svg{fill:#f59e0b}
+    .item-icon.expired{background:rgba(239,68,68,.1)}
+    .item-icon.expired svg{fill:#ef4444}
+    .item-info{flex:1;min-width:0}
+    .item-name-row{display:flex;align-items:flex-start;gap:8px;margin-bottom:4px}
+    .item-name{font-size:16px;font-weight:600;color:#0f172a;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .badge{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:4px;flex-shrink:0;color:#fff}
+    .badge.valid{background:linear-gradient(135deg,#10b981,#059669);box-shadow:0 2px 8px rgba(16,185,129,.3)}
+    .badge.warning{background:linear-gradient(135deg,#f59e0b,#d97706);box-shadow:0 2px 8px rgba(245,158,11,.3)}
+    .badge.expired{background:linear-gradient(135deg,#ef4444,#dc2626);box-shadow:0 2px 8px rgba(239,68,68,.3)}
+    .badge svg{width:12px;height:12px;fill:currentColor}
+    .item-subtitle{font-size:13px;color:#64748b;margin-bottom:8px}
+    .item-tags{display:flex;flex-wrap:wrap;gap:6px}
+    .tag{display:inline-flex;align-items:center;gap:4px;padding:4px 8px;background:#f1f5f9;border-radius:6px;font-size:11px;color:#64748b}
+    .tag svg{width:12px;height:12px;fill:#94a3b8}
+    .item-divider{height:1px;background:#e2e8f0;margin:12px 0}
+    .item-footer{display:flex;gap:20px}
+    .countdown-item{display:flex;align-items:flex-start;gap:6px}
+    .countdown-item svg{width:16px;height:16px;margin-top:2px;fill:#94a3b8}
+    .countdown-item.warning svg,.countdown-item.expired svg{fill:currentColor}
+    .countdown-text{display:flex;flex-direction:column}
+    .countdown-label{font-size:10px;color:#94a3b8}
+    .countdown-date{font-size:12px;font-weight:500;color:#475569}
+    .countdown-days{font-size:11px;font-weight:600;padding:2px 6px;border-radius:4px}
+    .countdown-days.warning{background:rgba(245,158,11,.1);color:#f59e0b}
+    .countdown-days.expired{background:rgba(239,68,68,.1);color:#ef4444}
+    .countdown-days.valid{background:rgba(16,185,129,.1);color:#10b981}
+    .delete-btn{margin-left:auto;width:32px;height:32px;border-radius:8px;background:rgba(239,68,68,.1);display:flex;align-items:center;justify-content:center;cursor:pointer;border:none;transition:all .2s}
+    .delete-btn:hover{background:rgba(239,68,68,.2)}
+    .delete-btn svg{width:16px;height:16px;fill:#ef4444}
+    .warranty-card{background:linear-gradient(135deg,rgba(16,185,129,.08),rgba(16,185,129,.02));border:1px solid rgba(16,185,129,.2);border-radius:20px;padding:20px;margin-bottom:16px}
+    .warranty-header{display:flex;align-items:flex-start;gap:12px;margin-bottom:16px}
+    .warranty-icon{width:44px;height:44px;background:rgba(16,185,129,.2);border-radius:12px;display:flex;align-items:center;justify-content:center}
+    .warranty-icon svg{width:22px;height:22px;fill:#10b981}
+    .warranty-info{flex:1}
+    .warranty-title{font-size:14px;color:#64748b;margin-bottom:4px}
+    .warranty-days{font-size:32px;font-weight:700;color:#10b981;line-height:1}
+    .warranty-badge{padding:6px 12px;background:#10b981;border-radius:20px;color:#fff;font-size:12px;font-weight:600}
+    .warranty-divider{height:1px;background:rgba(16,185,129,.2);margin:16px 0}
+    .warranty-details{display:flex;justify-content:space-around}
+    .warranty-detail{text-align:center}
+    .warranty-detail-label{font-size:11px;color:#94a3b8;margin-bottom:4px}
+    .warranty-detail-value{font-size:13px;font-weight:600;color:#0f172a}
+    .empty-state{text-align:center;padding:60px 20px}
+    .empty-illustration{width:140px;height:140px;margin:0 auto 24px;position:relative}
+    .empty-circle-1{position:absolute;width:140px;height:140px;background:rgba(16,185,129,.1);border-radius:50%;top:0;left:0}
+    .empty-circle-2{position:absolute;width:100px;height:100px;background:rgba(16,185,129,.15);border-radius:50%;top:20px;left:20px}
+    .empty-circle-3{position:absolute;width:64px;height:64px;background:linear-gradient(135deg,#10b981,#059669);border-radius:50%;top:38px;left:38px;box-shadow:0 8px 24px rgba(16,185,129,.4);display:flex;align-items:center;justify-content:center}
+    .empty-circle-3 svg{width:28px;height:28px;fill:#fff}
+    .empty-dot-1{position:absolute;width:12px;height:12px;background:#fbbf24;border-radius:50%;top:10px;right:20px;opacity:.7}
+    .empty-dot-2{position:absolute;width:8px;height:8px;background:#3b82f6;border-radius:50%;bottom:20px;left:15px;opacity:.6}
+    .empty-title{font-size:18px;font-weight:600;color:#0f172a;margin-bottom:8px}
+    .empty-subtitle{font-size:14px;color:#64748b;margin-bottom:24px}
+    .primary-btn{display:inline-flex;align-items:center;gap:8px;padding:12px 24px;background:linear-gradient(135deg,#10b981,#059669);border-radius:12px;color:#fff;font-size:15px;font-weight:600;border:none;cursor:pointer;box-shadow:0 4px 16px rgba(16,185,129,.3);transition:all .2s}
+    .primary-btn:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(16,185,129,.4)}
+    .primary-btn svg{width:18px;height:18px;fill:#fff}
+    .buttons-section,.warranty-badges{background:#fff;border-radius:16px;padding:20px;margin-bottom:16px;box-shadow:0 4px 20px rgba(0,0,0,.06)}
+    .section-title{font-size:13px;font-weight:600;color:#64748b;letter-spacing:.5px;margin-bottom:16px;text-transform:uppercase}
+    .btn-row{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+    .btn-label{width:70px;font-size:12px;color:#94a3b8}
+    .secondary-btn{display:inline-flex;align-items:center;gap:6px;padding:10px 16px;background:#f1f5f9;border-radius:10px;color:#64748b;font-size:13px;font-weight:500;border:1px solid #e2e8f0;cursor:pointer}
+    .secondary-btn svg{width:16px;height:16px;fill:#94a3b8}
+    .badge-row{display:flex;flex-wrap:wrap;gap:10px}
+    .warranty-badge-item{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:20px;font-size:11px;font-weight:600}
+    .warranty-badge-item svg{width:12px;height:12px}
+    .warranty-badge-item.active{background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);color:#10b981}
+    .warranty-badge-item.active svg{fill:#10b981}
+    .warranty-badge-item.warning{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#f59e0b}
+    .warranty-badge-item.warning svg{fill:#f59e0b}
+    .warranty-badge-item.expired{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#ef4444}
+    .warranty-badge-item.expired svg{fill:#ef4444}
+    .fab{position:fixed;bottom:24px;right:24px;width:56px;height:56px;background:linear-gradient(135deg,#10b981,#059669);border-radius:16px;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(16,185,129,.4);cursor:pointer;transition:all .2s;border:none}
+    .fab:hover{transform:scale(1.1);box-shadow:0 12px 32px rgba(16,185,129,.5)}
+    .fab svg{width:24px;height:24px;fill:#fff}
+    .mode-toggle{position:fixed;top:20px;right:20px;z-index:1001;display:flex;gap:8px}
+    .mode-btn{padding:10px 16px;background:#fff;border:none;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,.1);transition:all .2s}
+    .mode-btn.active{background:#10b981;color:#fff}
+    body.dark{background:#0f172a;color:#f8fafc}
+    body.dark .header,body.dark .stats-card,body.dark .item-card,body.dark .warranty-card,body.dark .empty-state,body.dark .buttons-section,body.dark .warranty-badges{background:#1e293b;box-shadow:0 4px 20px rgba(0,0,0,.3)}
+    body.dark .search-box{background:#334155;border-color:#475569}
+    body.dark .search-box input{color:#e2e8f0}
+    body.dark .icon-btn{background:#334155}
+    body.dark .icon-btn:hover{background:#475569}
+    body.dark .stat-item.total{background:#334155}
+    body.dark .stat-label{color:#94a3b8}
+    body.dark .tabs-container{background:#334155}
+    body.dark .tab{color:#94a3b8}
+    body.dark .tab.active{background:#1e293b;color:#10b981}
+    body.dark .item-name{color:#f8fafc}
+    body.dark .item-subtitle,.countdown-label,.countdown-date{color:#94a3b8}
+    body.dark .tag{background:#334155;color:#94a3b8}
+    body.dark .tag svg{fill:#64748b}
+    body.dark .item-divider{background:#334155}
+    body.dark .empty-title{color:#f8fafc}
+    body.dark .empty-subtitle{color:#94a3b8}
+    body.dark .empty-circle-1{background:rgba(16,185,129,.2)}
+    body.dark .empty-circle-2{background:rgba(16,185,129,.3)}
+    body.dark .section-title,.btn-label{color:#94a3b8}
+    body.dark .secondary-btn{background:#334155;color:#94a3b8;border-color:#475569}
+    body.dark .warranty-title,.warranty-detail-label{color:#94a3b8}
+    body.dark .warranty-detail-value{color:#f8fafc}
+    body.dark .warranty-divider{background:rgba(16,185,129,.2)}
+    body.dark .mode-btn{background:#1e293b;color:#94a3b8}
+  </style>
+</head>
+<body>
+  <div class='mode-toggle'>
+    <button class='mode-btn active' onclick='setMode("light")'>Light</button>
+    <button class='mode-btn' onclick='setMode("dark")'>Dark</button>
+  </div>
+  <div class='container'>
+    <div class='header'>
+      <div class='header-top'>
+        <div class='header-title'>过期管家</div>
+        <div class='header-actions'>
+          <button class='icon-btn'><svg viewBox='0 0 24 24' width='20' height='20' fill='%2364748b'><path d='M9.5 6.5v3h-3v-3h3M11 5H5v6h6V5zm-1.5 9.5v3h-3v-3h3M11 13H5v6h6v-6zm6.5-6.5v3h-3v-3h3M19 5h-6v6h6V5zm-6 8h1.5v1.5H13V13zm1.5 1.5H16V16h-1.5v-1.5zM16 13h1.5v1.5H16V13zm-3 3h1.5v1.5H13V16zm1.5 1.5H16V19h-1.5v-1.5zM19 13h-1.5v1.5H19V13zm0 3h-1.5v1.5H19V16zm0 3h-1.5v1.5H19V19z'/></svg></button>
+          <button class='icon-btn'><svg viewBox='0 0 24 24' width='20' height='20' fill='%2364748b'><path d='M3 18v-6a9 9 0 0 1 18 0v6'/><path d='M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z' fill='none' stroke='%2364748b' stroke-width='2'/></svg></button>
+          <button class='icon-btn'><svg viewBox='0 0 24 24' width='20' height='20' fill='%2364748b'><path d='M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z'/><path d='M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z'/></svg></button>
+        </div>
+      </div>
+      <div class='search-box'>
+        <svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='%2394a3b8' stroke-width='2'><circle cx='11' cy='11' r='8'/><path d='m21 21-4.35-4.35'/></svg>
+        <input type='text' placeholder='搜索名称、品牌、厂家...'>
+      </div>
+    </div>
+    <div class='stats-card'>
+      <div class='stats-header'>
+        <div class='stats-icon'><svg viewBox='0 0 24 24'><path d='M3 3v18h18M9 17V9m4 8V5m4 12v-6'/></svg></div>
+        <div class='stats-title'>物品概览</div>
+      </div>
+      <div class='stats-grid'>
+        <div class='stat-item total'><div class='stat-value total'>12</div><div class='stat-label'>总数</div></div>
+        <div class='stat-item valid'><div class='stat-value valid'>8</div><div class='stat-label'>有效</div></div>
+        <div class='stat-item warning'><div class='stat-value warning'>3</div><div class='stat-label'>预警</div></div>
+        <div class='stat-item expired'><div class='stat-value expired'>1</div><div class='stat-label'>过期</div></div>
+      </div>
+    </div>
+    <div class='tabs-container'>
+      <button class='tab active'>全部</button><button class='tab'>有效</button><button class='tab'>预警</button><button class='tab'>过期</button><button class='tab'>归档</button>
+    </div>
+    <div class='warranty-badges'>
+      <div class='section-title'>状态标签</div>
+      <div class='badge-row'>
+        <span class='badge valid'><svg viewBox='0 0 24 24'><path d='M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/></svg>有效</span>
+        <span class='badge warning'><svg viewBox='0 0 24 24'><path d='M12 2L1 21h22zM11 10h2v5h-2zm0 6h2v2h-2z'/></svg>即将过期</span>
+        <span class='badge expired'><svg viewBox='0 0 24 24'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z'/></svg>已过期</span>
+      </div>
+      <div class='badge-row' style='margin-top:12px'>
+        <span class='warranty-badge-item active'><svg viewBox='0 0 24 24'><path d='M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z'/></svg>保修中</span>
+        <span class='warranty-badge-item warning'><svg viewBox='0 0 24 24'><path d='M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z'/></svg>即将过保</span>
+        <span class='warranty-badge-item expired'><svg viewBox='0 0 24 24'><path d='M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z'/></svg>已过保</span>
+      </div>
+    </div>
+    <div class='item-card'>
+      <div class='item-card-header valid'></div>
+      <div class='item-card-content'>
+        <div class='item-row'>
+          <div class='item-icon valid'><svg viewBox='0 0 24 24' width='24' height='24'><path d='M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14H8v-2h4v2zm0-4H8v-2h4v2zm6 4h-4v-2h4v2zm0-4h-4v-2h4v2z'/></svg></div>
+          <div class='item-info'>
+            <div class='item-name-row'><span class='item-name'>维生素C咀嚼片</span><span class='badge valid'><svg viewBox='0 0 24 24'><path d='M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/></svg>有效</span></div>
+            <div class='item-subtitle'>100片装</div>
+            <div class='item-tags'><span class='tag'><svg viewBox='0 0 24 24'><path d='M21 6H3a1 1 0 0 1-.9-1.45l1.55-2.31A1 1 0 0 1 5 1h14a1 1 0 0 1 .9 1.45L20.1 5.74A1 1 0 0 1 19 7H5zM4 15a1 1 0 0 0 .9.55L10 19l5.1-3.45a1 1 0 0 0 .9-1.55H4z'/></svg>药品</span></div>
+          </div>
+        </div>
+        <div class='item-divider'></div>
+        <div class='item-footer'>
+          <div class='countdown-item valid'><svg viewBox='0 0 24 24'><path d='M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11zM9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2z'/></svg><div class='countdown-text'><span class='countdown-label'>有效期</span><span class='countdown-date'>2025-12-31</span></div></div>
+          <div class='countdown-days valid'>剩余 196 天</div>
+          <button class='delete-btn'><svg viewBox='0 0 24 24'><path d='M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z'/></svg></button>
+        </div>
+      </div>
+    </div>
+    <div class='item-card'>
+      <div class='item-card-header warning'></div>
+      <div class='item-card-content'>
+        <div class='item-row'>
+          <div class='item-icon warning'><svg viewBox='0 0 24 24' width='24' height='24'><path d='M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z'/></svg></div>
+          <div class='item-info'>
+            <div class='item-name-row'><span class='item-name'>小米手机</span><span class='badge warning'><svg viewBox='0 0 24 24'><path d='M12 2L1 21h22zM11 10h2v5h-2zm0 6h2v2h-2z'/></svg>即将过期</span></div>
+            <div class='item-subtitle'>12GB+256GB 玄岩黑</div>
+            <div class='item-tags'><span class='tag'><svg viewBox='0 0 24 24'><path d='M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99z'/></svg>电子产品</span><span class='tag'><svg viewBox='0 0 24 24'><path d='M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z'/></svg>24个月保修</span></div>
+          </div>
+        </div>
+        <div class='item-divider'></div>
+        <div class='item-footer'>
+          <div class='countdown-item warning'><svg viewBox='0 0 24 24' style='fill:#f59e0b'><path d='M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z'/></svg><div class='countdown-text'><span class='countdown-label'>有效期</span><span class='countdown-date'>2025-07-15</span></div></div>
+          <div class='countdown-days warning'>剩余 27 天</div>
+          <button class='delete-btn'><svg viewBox='0 0 24 24'><path d='M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z'/></svg></button>
+        </div>
+      </div>
+    </div>
+    <div class='item-card'>
+      <div class='item-card-header expired'></div>
+      <div class='item-card-content'>
+        <div class='item-row'>
+          <div class='item-icon expired'><svg viewBox='0 0 24 24' width='24' height='24'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-5-6h10v2H7zm1.5-4c.28 0 .5-.22.5-.5s-.22-.5-.5-.5-.5.22-.5.5.22.5.5.5zm7 0c.28 0 .5-.22.5-.5s-.22-.5-.5-.5-.5.22-.5.5.22.5.5.5z'/></svg></div>
+          <div class='item-info'>
+            <div class='item-name-row'><span class='item-name'>SK-II精华露</span><span class='badge expired'><svg viewBox='0 0 24 24'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z'/></svg>已过期</span></div>
+            <div class='item-subtitle'>230ml</div>
+            <div class='item-tags'><span class='tag'><svg viewBox='0 0 24 24'><path d='M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z'/></svg>化妆品</span></div>
+          </div>
+        </div>
+        <div class='item-divider'></div>
+        <div class='item-footer'>
+          <div class='countdown-item expired'><svg viewBox='0 0 24 24' style='fill:#ef4444'><path d='M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z'/></svg><div class='countdown-text'><span class='countdown-label'>有效期</span><span class='countdown-date'>2025-06-01</span></div></div>
+          <div class='countdown-days expired'>已过期 17 天</div>
+          <button class='delete-btn'><svg viewBox='0 0 24 24'><path d='M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z'/></svg></button>
+        </div>
+      </div>
+    </div>
+    <div class='warranty-card'>
+      <div class='warranty-header'>
+        <div class='warranty-icon'><svg viewBox='0 0 24 24'><path d='M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z'/></svg></div>
+        <div class='warranty-info'><div class='warranty-title'>保修期</div><div class='warranty-days'>695</div></div>
+        <div class='warranty-badge'>保修中</div>
+      </div>
+      <div class='warranty-divider'></div>
+      <div class='warranty-details'>
+        <div class='warranty-detail'><div class='warranty-detail-label'>购买日期</div><div class='warranty-detail-value'>2024-06-18</div></div>
+        <div class='warranty-detail'><div class='warranty-detail-label'>保修时长</div><div class='warranty-detail-value'>24 个月</div></div>
+        <div class='warranty-detail'><div class='warranty-detail-label'>截止日期</div><div class='warranty-detail-value'>2026-06-18</div></div>
+      </div>
+    </div>
+    <div class='buttons-section'>
+      <div class='section-title'>按钮样式</div>
+      <div class='btn-row'><span class='btn-label'>主按钮</span><button class='primary-btn'><svg viewBox='0 0 24 24'><path d='M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z'/></svg>添加物品</button></div>
+      <div class='btn-row'><span class='btn-label'>次要按钮</span><button class='secondary-btn'><svg viewBox='0 0 24 24'><path d='M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59z'/></svg>取消</button></div>
+    </div>
+    <div class='item-card' style='margin-top:16px'>
+      <div class='item-card-content' style='padding:40px 20px'>
+        <div class='empty-state'>
+          <div class='empty-illustration'>
+            <div class='empty-circle-1'></div><div class='empty-circle-2'></div>
+            <div class='empty-circle-3'><svg viewBox='0 0 24 24'><path d='M20 2H4c-1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z'/></svg></div>
+            <div class='empty-dot-1'></div><div class='empty-dot-2'></div>
+          </div>
+          <div class='empty-title'>还没有任何物品</div>
+          <div class='empty-subtitle'>点击下方按钮添加你的第一个物品</div>
+          <button class='primary-btn'><svg viewBox='0 0 24 24'><path d='M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z'/></svg>添加物品</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <button class='fab'><svg viewBox='0 0 24 24'><path d='M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z'/></svg></button>
+  <script>
+    function setMode(m){document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));event.target.classList.add('active');m==='dark'?document.body.classList.add('dark'):document.body.classList.remove('dark')}
+    document.querySelectorAll('.tab').forEach(t=>{t.addEventListener('click',function(){document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));this.classList.add('active')})})
+  </script>
+</body>
+</html>

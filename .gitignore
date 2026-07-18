@@ -43,3 +43,22 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Signing config — 必须保留在本机 / 密码管理器中，
+# 一旦丢失将无法再为该应用签名更新版本。
+# /android/key.properties 中含有密钥库路径与密码，提交会泄露。
+# /android/upload-keystore.jks 是上传密钥本身。
+/android/key.properties
+/android/upload-keystore.jks
+/android/key.jks
+/android/app/upload-keystore.jks
+/android/app/key.jks
+/upload-keystore.jks
+
+# Claude Code 本地配置（permissions 等，不应入仓）
+.claude/
+
+# 调试用 SQLite / 测试截图（不入仓）
+/.db_*
+/test/ScreenShot_*.png
+/test_screenshots/
